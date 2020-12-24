@@ -1,0 +1,223 @@
+\documentclass[10pt,a4paper,twocolumn]{article}
+%\documentclass[12pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{commath}
+\usepackage{titlesec}
+\usepackage{caption}
+\usepackage{indentfirst}
+\usepackage{hyperref}
+\usepackage{enumitem}[leftmargin=0pt]
+\usepackage{cleveref}
+\usepackage{yfonts}
+\usepackage{verbatim}
+\usepackage{bm}
+\usepackage{float}
+\usepackage{braket}
+\usepackage[stable]{footmisc}
+
+\usepackage[backend=biber]{biblatex}
+\addbibresource{diff.bib}
+
+\usepackage{graphicx}
+\graphicspath{{images/}}
+
+\renewcommand{\vec}[1]{\bm{\mathrm{#1}}}
+\newcommand{\si}[2]{$#1 \, \mathrm{#2}$}
+\newcommand{\diff}{\mathop{}\!\mathrm{d}}
+
+\begin{document}
+
+\title{Difference Methods for Initial Boundary Value PDEs}
+\author{Aleksandar Ivanov --- 28181116}
+\date{\today}
+\maketitle
+
+\section{Problem Statement}
+
+Observe the evolution of the wavefunction
+%
+\begin{align}
+    \Psi (x, 0) = \frac{1}{\pi^{1/4}} \exp \left( -\frac{(x - \lambda)^2}{2} \right)
+\end{align}
+%
+in the potential $V(x) = x^2/2$, i.e. evolved with the Schr\"odinger equation
+%
+\begin{align}
+    i \frac{\partial \Psi}{\partial t} = - \frac{1}{2} \frac{\partial^2 \Psi}{\partial x^2} + \frac{1}{2} x^2 \Psi,
+\end{align}
+%
+where all quantities are dimensionless (position is measured in units of $\sqrt{\hbar/m \omega}$ of the standard dimensionful SHO and time is measured in units of $1/\omega$). Choose to work on the interval $x \in [-40, 40]$ with $M = 300$ spatial points and try to observe around $10$ periods. Since this is a coherent state, compare your result to the analytical expression
+%
+\begin{align}
+    \Psi(x, t) &= \frac{1}{\pi^{1/4}} \exp \left( -\frac{(x - \lambda \cos(2t))^2}{2} -i t \right) \notag\\
+    &\times \exp \left( - i x \lambda \sin(2t) + \frac{1}{4} i \lambda^2 \sin(4t) \right).  
+\end{align}
+
+Also observe the evolution of the Gaussian
+%
+\begin{align}
+    \Psi (x, 0) = \frac{1}{(2 \pi \sigma_0^2)^{1/4}} \exp \left( i p_0 (x - \lambda) - \frac{(x - \lambda)^2}{(2 \sigma_0)^2} \right)
+\end{align}
+%
+without any potential. Choose the values $\lambda = 0.25$, $\sigma_0 = 0.05$ and $p_0 = 50 \pi$ and solve the equation on the interval $x \in [-0.5, 1.5]$, until the peak of the Gaussian reaches $x \approx 0.75$. For $h$ and $k$ being the time and space steps, respectively, choose the ratio $r = k/h^2 = 2$. Again compare your result to the analytical solution
+%
+\begin{align}
+    \Psi(x, t) &= \frac{(2 \pi \sigma_0)^{-1/4}}{\sqrt{1 + i t/(2\sigma_0^2)}} \exp \left( -\frac{(x - \lambda)^2/(2 \sigma_0)^2}{1 + i t/(2\sigma_0^2)} \right) \notag\\
+    &\times \exp \left( i\frac{p_0 (x - \lambda) - p_0^2 t /2}{1 + i t/(2\sigma_0^2)} \right).
+\end{align}
+
+
+\section{Methods}
+
+An obvious simple method that one might guess could be useful to us is the Future Time Central Space (FTCS) method, but on checking its viability for our problem we find that we cannot make it stable for any size of our steps. The problem lies in the imaginary `diffusion constant', which instead of helping to cancel the deviation each iteration, only compounds the problem. This leaves us with the next choice --- the Crank-Nicolson method.
+
+To explain the inner workings of this method we will define the notation
+%
+\begin{align}
+    u(x_m, t_n) = u_m^n,
+\end{align}
+%
+where $\{x_m\}_{m=0}^{M}$ are the spatial lattice points and $\{t_n\}_{n=0}^{N}$ are the temporal lattice points.
+
+The FTCS method is just the idea of discretizing the derivatives in the simplest way possible
+%
+\begin{align}
+    \frac{\diff \Psi}{\diff t}(x_m, t_n) &= \frac{\Psi_m^{n+1} - \Psi_m^n}{k} + \mathcal{O}_g(k) \\
+    \frac{\diff^2 \Psi}{\diff x^2}(x_m, t_n) &= \frac{\Psi_{m+1}^n - 2 \Psi_m^n + \Psi_{m-1}^n}{h^2} + \mathcal{O}_g(h^2),
+\end{align}
+%
+which calculates the future value as
+%
+\begin{align}
+    \Psi_m^{n+1} = \Psi_m^n + i r (\Psi_{m+1}^n - 2 \Psi_m^n + \Psi_{m-1}^n) - 2 i k V_m \Psi_m^n,
+\end{align}
+%
+where the upper index $n$ on $V$ has been dropped since $V(x)$ doesn't depend on time.
+
+The Crank-Nicolson method stabilizes the situation by instead taking the average of neighboring times for the second derivatives
+%
+\begin{align}
+    \frac{\diff^2 \Psi}{\diff x^2}(x_m, t_n) = \frac{1}{2} \left( \frac{\Psi_{m+1}^{n+1} - 2 \Psi_m^{n+1} + \Psi_{m-1}^{n+1}}{h^2} \right. \notag\\
+     + \left. \frac{\Psi_{m+1}^n - 2 \Psi_m^n + \Psi_{m-1}^n}{h^2} \right) + \mathcal{O}_g(h^2),
+\end{align}
+%
+in the process forfeiting explicitness. The differential equation can the easily be written in matrix form
+%
+\begin{align}
+    \left(1 - \frac{i r}{4} D \right) \vec{\Psi}^{n+1} = \left(1 + \frac{i r}{4} D - i k V\right) \vec{\Psi}^n,
+\end{align}
+%
+where $D$ is the tridiagonal, derivative matrix, $V$ is the diagonal matrix representing the potential and $\vec{\Psi}^n = (\Psi_0^n, \dots, \Psi_M^n)$.
+
+This equation can be made more symmetric by also symmetrizing the potential term $V$. This is equivalent to approximating the time evolution operator as
+%
+\begin{align}
+    \exp(-i H k) = \frac{1 - \frac{1}{2}i H k}{1 + \frac{1}{2}i H k} + \mathcal{O}(k^3),
+\end{align}
+%
+and has the added benefit that it better conserves unitarity. In this way the equation for $\vec{\Psi}$ can be written as
+%
+\begin{align}
+    A \vec{\Psi}^{n+1} = A^* \vec{\Psi}^n,
+\end{align} 
+%
+with the matrix is given by
+%
+\begin{align}
+    A = 
+    \begin{bmatrix}
+        d_0 & a \\
+        a   & d_1 & a \\
+        & a & d_2 & a \\
+        & & \ddots & \ddots & \ddots \\
+        & & & a & d_{M-1} & a \\
+        & & & & a & d_{M}
+    \end{bmatrix},
+\end{align}
+%
+where
+%
+\begin{align}
+    &a = - \frac{i k}{4 h^2},& &d_m = 1 + \frac{i k}{2 h^2} + \frac{1}{2} i k V_m.&
+\end{align}
+
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{times.png}
+    \caption{The evaluation time as a function of the number of points in a log scale. When we vary the number of spatial points, we keep the number of temporal points fixed and vice-versa.}
+    \label{fig:times}
+\end{figure}
+
+\section{Results and Discussion}
+
+First we test the speed of the fully symmetrized Crank-Nicolson method. We expect that it depends on both the number of spatial points and the number of temporal points. In fact, since at each time step we are using the Thomas algorithm for tridiagonal matrices, and we are also multiplying efficiently, we expect that the evaluation time should go like $\mathcal{O}(MN)$. \Cref{fig:times} shows exactly this; we see that as we keep one of them constant, the other number increases the evaluation time linearly. We also see that for small values of $N$ we have deviations from the linear asymptote.
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{cncn_sol.png}
+    \caption{The solution for the coherent state, using our algorithm.}
+    \label{fig:coh_sol}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{peak_pos.png}
+    \caption{The position of the peak of the coherent state over time.}
+    \label{fig:coh_peak_pos}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{peak_height.png}
+    \caption{The height of the peak of the coherent state over time.}
+    \label{fig:coh_peak_hei}
+\end{figure}
+
+Continuing to calculate the evolution of the coherent state, we get \cref{fig:coh_sol}; it shows the solution over time. We notice that there is the expected oscillation of the peak, but the peak height seems to change in wild ways. To study it further we plot \cref{fig:coh_peak_pos,fig:coh_peak_hei}. In \cref{fig:coh_peak_pos} we see the position of the peak over time and again notice the expected oscillation and with the expected period. In \cref{fig:coh_peak_hei} we see the height of the peak over time. Concerningly, we see that the peak height instead of being constant is varying wildly with time. This is probably due to our numerical error.
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{cncn_0_sol.png}
+    \caption{The solution for the Gaussian wavepacket, using our algorithm.}
+    \label{fig:wp_sol}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{peak_0_pos.png}
+    \caption{The position of the peak of the Gaussian wavepacket over time.}
+    \label{fig:wp_peak_pos}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{peak_0_height.png}
+    \caption{The height of the peak of the Gaussian wavepacket over time.}
+    \label{fig:wp_peak_hei}
+\end{figure}
+
+For the Gaussian wavepacket in free space the solution is given by \cref{fig:wp_sol}. As expected, it moves with a constant positive velocity. This is also seen in \cref{fig:wp_peak_pos}. In \cref{fig:wp_peak_hei} we see that the peak height is decreasing. One would at first think that this is due to the fact that the Gaussian wavepacket is spreading as would be predicted by the theory, but calculating the standard deviation, we get that it is approximately constant. This is due to the fact that the speed of our wavepacket is $p_0 = 50 \pi$, a very large number, so that the wavepacket doesn't have time to spread in the time interval in which we are observing it. So we conclude that this loss of height is again due to probability loss caused by numerical error.  
+
+
+\nocite{1}
+\nocite{Dijk2007AccurateNS}
+
+\printbibliography
+
+
+\end{document}
+
