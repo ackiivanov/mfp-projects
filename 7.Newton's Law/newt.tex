@@ -1,0 +1,250 @@
+\documentclass[10pt,a4paper,twocolumn]{article}
+%\documentclass[12pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{commath}
+\usepackage{titlesec}
+\usepackage{caption}
+\usepackage{indentfirst}
+\usepackage{hyperref}
+\usepackage{enumitem}[leftmargin=0pt]
+\usepackage{cleveref}
+\usepackage{yfonts}
+\usepackage{verbatim}
+\usepackage{bm}
+\usepackage{float}
+\usepackage{braket}
+\usepackage[stable]{footmisc}
+
+\usepackage[backend=biber]{biblatex}
+\addbibresource{newt.bib}
+
+\usepackage{graphicx}
+\graphicspath{{images/}}
+
+\newcommand{\si}[2]{$#1 \, \mathrm{#2}$}
+
+\begin{document}
+
+\title{Newton's Law}
+\author{Aleksandar Ivanov}
+\date{\today}
+\maketitle
+
+\section{Problem Statement}
+
+Use as many numerical methods as possible to solve the mathematical pendulum
+%
+\begin{align}
+    I \ddot{\theta} = -mgL \sin(\theta),
+\end{align}
+%
+with the initial conditions $\theta (0) = \theta_0$ and $\dot{\theta} (0) = 0$. Find the step size that guarantees accuracy to three decimal places. Compare the periodical stability of the methods used and check the phase space portrait of the motion. Compare the period of the motion to the analytical solution through the complete elliptic integral of the first kind
+%
+\begin{align}
+    K (m) = \int_{0}^{\frac{\pi}{2}} \frac{\mathrm{d}u}{1-m \sin^2(u)},
+\end{align}
+%
+which gives it as $T = \frac{4}{\omega_0} K \left( \sin^2 \left( \frac{\theta_0}{2} \right) \right)$ \cite{anal_per}, where $\omega_0^2 = \frac{mgL}{I} $.
+
+
+\section{Mathematical Setup}
+
+Firstly, we will, of course, nondimensionalize our equation. Defining the standard parameters
+%
+\begin{align}
+    &\omega_0^2 = \frac{mgL}{I},& &\tau = \omega_0 t,&
+\end{align}
+%
+we get the nondimensional version
+%
+\begin{align}\label{eq:diff}
+    \ddot{\theta} + \sin(\theta) = 0.
+\end{align}
+
+Since this is a non-dissipative system, we know that energy is conserved, and we can get (the nondimensional version of) it by multiplying the previous equation by $\dot{\theta}$ and integrating with respect to time, which (up to a constant) gives us
+%
+\begin{align}\label{eq:erg}
+    E = - \cos(\theta) + \frac{\dot{\theta}^2}{2}.
+\end{align}
+
+This will be helpful when looking at symplectic integrators, which (up to a given precision) do a better job at conserving the energy of the system.
+
+Another formula that we will need is the formula for the exact analytical solution of our problem in terms of elliptic functions given by \cite{anal_sol}
+%
+\begin{align}\label{eq:exact}
+    \theta (\tau) = 2 \arcsin \! \! \left( \! \sin \frac{\theta_0}{2} \mathrm{sn} \! \! \left( \! K \! \! \left( \! \sin^2 \frac{\theta_0}{2} \! \right) \! \! - \! \tau; \sin^2 \frac{\theta_0}{2} \! \! \right) \! \right),
+\end{align}
+%
+where $K$ is the aforementioned complete elliptic integral of the first kind, and $\mathrm{sn}$ refers to the Jacobi elliptic function. This solution is only valid for $\theta_0 \in (-\pi, \pi$.
+
+\section{Methods}
+
+The numerical methods we will be using will be:
+%
+\begin{enumerate}
+    \item The Euler method,
+    \item The Runge-Kutta method of order 4,
+    \item The Verlet method,
+    \item The Position Extended Forest-Ruth Like 4th order method, and
+    \item The Runge-Kutta-Fehlberg 4(5) method.
+\end{enumerate}
+
+All of these are explicit methods. One through four are methods with constant step size, while the fifth one is a method with self-correcting, variable step size. The most important difference, however, is between the groups (1, 2, 5) and (3, 4); the methods of the second group are examples of symplectic methods \cite{symp}. Physically, this means that they try to keep the energy constant or, in other words, are built with conservation of energy in mind. These kinds of methods are especially important when simulating non-driven, non-damped physical systems, since we know that those systems conserve energy. Our mathematical pendulum is an example of such a system.
+
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{err_N.png}
+    \caption{Error of the different constant-step methods as a function of step size $h$ for the initial condition $\theta_0 = 1$, keeping the number of points constant. Also shown is the desired accuracy of $10^{-3}$.}
+    \label{fig:err_N}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{err_T.png}
+    \caption{Error of the different constant-step methods as a function of step size $h$ for the initial condition $\theta_0 = 1$, keeping the time interval constant. Also shown is the desired accuracy of $10^{-3}$.}
+    \label{fig:err_T}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{err_N_1.png}
+    \caption{Error of the different constant-step methods as a function of step size $h$ for the initial condition $\theta_0 \approx 3.1316$, keeping the number of points constant. Also shown is the desired accuracy of $10^{-3}$.}
+    \label{fig:err_N_1}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{err_T_1.png}
+    \caption{Error of the different constant-step methods as a function of step size $h$ for the initial condition $\theta_0 \approx 3.1316$, keeping the time interval constant. Also shown is the desired accuracy of $10^{-3}$.}
+    \label{fig:err_T_1}
+\end{figure}
+
+\section{Accuracy}
+
+Firstly we will test the accuracy of the methods; namely, we will try to find the necessary step size to achieve an error smaller than $10^{-3}$. We will calculate the error as the maximal deviation from the analytical solution given by \cref{eq:exact} on the interval we are working on. For the constant step methods we will do this twice once by keeping the number of points constant and changing the interval length and another time by keeping the interval length constant and changing the number of points. Doing this explicitly for the two cases of $\theta_0 = 1$ and $\theta_0 = \pi - 0.01$, we get \cref{fig:err_N,fig:err_T,fig:err_N_1,fig:err_T_1}. Unsurprisingly, they show that the PEFRL meh] is the best of all our constant step methods, since it's a symplectic 4th order method. We also see that RK4, even though it is not symplectic, can hold its own around the symplectic Verlet, since Verlet is a second order method. We also see that depending on our definition of the accuracy that we want we can have cases where simple methods like Euler are totally useless.
+
+Another thing to notice comparing the graphs is that as we make the initial condition larger and larger the maximal step size that can get us an accuracy of at least $10^{-3}$ becomes smaller and smaller.
+
+The accuracy of the RKF4(5) method is as in \cite{me} basically only limited by two things: the tolerance and float double precision.
+
+
+\section{Stability}
+
+To check the stability of the methods we will look at three different things: the amplitude of the oscillations over time, the energy over time, and the phase portrait over time.
+
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{sol_T_0.png}
+    \caption{Solution of the differential equation using the constant step methods with a large step size $h = 1.0$.}
+    \label{fig:sol_T_0}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{sol_T_1.png}
+    \caption{Solution of the differential equation using the constant step methods with a smaller step size $h = 0.5$.}
+    \label{fig:sol_T_1}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{sol_T_2.png}
+    \caption{Solution of the differential equation using the constant step methods with a step size of $h = 0.1$.}
+    \label{fig:sol_T_2}
+\end{figure}
+
+\subsection{Amplitude}
+
+We will look at the graphs of the solution of \cref{eq:diff}, solved using different numerical methods. The interval on which we will solve the equation will be $\tau \in [0, 50]$ and the step size we will use are $h = 1.0$, $h = 0.5$ and $h = 0.1$. Choosing $h$ to be as small as possible, while in general good, will only hinder clarity in the graphs in this case. This is the reason for using somewhat larger values of $h$. Generating \cref{fig:sol_T_0,fig:sol_T_1,fig:sol_T_2} in this way, what immediately pops into our eyes is How much the amplitude of the Euler solution grows, while we know it should stay constant. This explains why the Euler method had such bad accuracy in the previous section. In fact this is a property of all the non-symplectic methods we have here, but it's not visible in the case of RK4 since it's a fourth order method. We also see that while Verlet is symplectic and conserves energy, its accuracy suffers because it doesn't get the phase of oscillations quite right. For our parameters RK4 and PEFRL are almost equivalent, but PEFRL seems to get the amplitude more accurately than RK4.
+
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{erg_T_1.png}
+    \caption{Energy over time for some of the constant step methods with a step size of $h = 0.1$.}
+    \label{fig:erg_T_1}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{erg_T_2.png}
+    \caption{Energy over time for some of the constant step methods with a step size of $h = 0.1$.}
+    \label{fig:erg_T_2}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{erg_RKF.png}
+    \caption{Energy over time for RKF4(5) with a tolerance of $\epsilon = 10^{-8}$.}
+    \label{fig:erg_RKF}
+\end{figure}
+
+\subsection{Energy}
+
+Using \cref{eq:erg} and the solutions from the previous subsection, we generate \cref{fig:erg_T_1,fig:erg_T_2}. They show how the energy behaves over time depending on which algorithm we use. We see that the non-symplectic algorithms don't conserve the energy, whether losing it or gaining extra. The results of the Euler method are not shown because it immediately starts gaining energy and is way beyond any of the scales in the graphs shown. The symplectic algorithms, being more energy conserving, usually oscillation near the analytically predicted energy, and they mostly err on the side of less energy. Comparing Verlet and PEFRL we see that the higher the order of the algorithm the better it is at conserving energy too.
+
+The RKF4(5) is not symplectic, as we can see in \cref{fig:erg_RKF}, but it is so accurate that the deviations in energy are still tiny. Since the error at each step is cumulative, though, if we used a large enough interval, we would eventually lose enough accuracy to be noticeable. This does not happen with symplectic solvers.
+
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{phase_portrait_0.png}
+    \caption{Phase portrait for the different constant step methods using a step of $h = 1.0$.}
+    \label{fig:phase_portrait_0}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{phase_portrait_1.png}
+    \caption{Phase portrait for the different constant step methods using a step of $h = 0.1$.}
+    \label{fig:phase_portrait_1}
+\end{figure}
+
+\subsection{Phase Portrait}
+
+\Cref{fig:phase_portrait_0,fig:phase_portrait_1} are another test on the stability of the methods. We again use the somewhat larger than usual values of $h = 1$ and $h = 0.1$ as our step sizes. In this light too, the Euler method quickly strays from the analytical trajectory and starts gaining energy. The stability of PEFRL is seen in the fact that it strays the least from the analytical ellipse. Already with $h = 0.1$, the straying in phase space is not graphically noticeable over the time interval where we solve the differential equation, $\tau \in [0, 50]$.
+
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{periods.png}
+    \caption{Period as a function of initial condition $\theta_0$.}
+    \label{fig:periods}
+\end{figure}
+
+\section{Period}
+
+We also calculate the periods given by the different methods and compare them to the analytical period given by
+%
+\begin{align}
+    T = 4 K \left( \sin^2 \left( \frac{\theta_0}{2} \right) \right).
+\end{align}
+
+Numerically, we calculate the period by finding the peaks of the solution and subtracting the times of neighboring peaks. We also average this over all the differences of peaks on our interval, $\tau \in [0, 100]$, to get a more uniform estimate of the period.
+
+Plotting the period as a function of the initial condition, $\theta_0$, we get \cref{fig:periods}. Even with a very small step size at larger amplitudes, close to $\pi$, the Euler method starts getting the period noticeably wrong. The other methods are all comparably accurate on the larger scale, but on zooming in Verlet falters first while the rest continue being quite close.
+
+\printbibliography
+
+\end{document}
