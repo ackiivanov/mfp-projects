@@ -1,0 +1,262 @@
+\documentclass[10pt,a4paper,twocolumn]{article}
+%\documentclass[12pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{commath}
+\usepackage{titlesec}
+\usepackage{caption}
+\usepackage{indentfirst}
+\usepackage{hyperref}
+\usepackage{enumitem}[leftmargin=0pt]
+\usepackage{cleveref}
+\usepackage{yfonts}
+\usepackage{verbatim}
+\usepackage{bm}
+\usepackage{float}
+\usepackage{braket}
+\usepackage[stable]{footmisc}
+
+\usepackage[backend=biber]{biblatex}
+\addbibresource{bvp.bib}
+
+\usepackage{graphicx}
+\graphicspath{{images/}}
+
+\renewcommand{\vec}[1]{\bm{\mathrm{#1}}}
+\newcommand{\si}[2]{$#1 \, \mathrm{#2}$}
+\newcommand{\diff}{\mathop{}\!\mathrm{d}}
+
+\begin{document}
+
+\title{Boundary Eigenvalue Problem}
+\author{Aleksandar Ivanov}
+\date{\today}
+\maketitle
+
+\section{Problem Statement}
+
+Find a few of the low-lying eigenvalues and eigenvectors, solutions of the (nondimensionalized) Schödinger equation
+%
+\begin{align}\label{eq:schroe}
+    - \frac{\diff^2 \psi}{\diff x^2} + V(x) \psi = E \psi,
+\end{align}
+%
+for the infinite square well potential
+%
+\begin{align}
+    V(x) = \begin{cases}
+        0 & |x| \leq \frac{a}{2} \\
+        \infty & \mathrm{otherwise},
+    \end{cases}
+\end{align}
+%
+using both the finite difference method and the shooting method (you can also try other methods if you like). Do the same for the finite square well
+%
+\begin{align}
+    V(x) = \begin{cases}
+        V_0 & |x| \geq \frac{a}{2} \\
+        0 & \mathrm{otherwise},
+    \end{cases}
+\end{align}
+%
+which is only different by a trivial generalization of the boundary conditions. What has more of an effect on the solution when using the finite difference method: the finite precision of the approximation of the second derivative or the granularity of the interval?
+
+\section{Methods}
+
+The two methods we will be using will be the shooting method and the finite difference method.
+
+The idea of the shooting method in the case of solving for eigenpairs of functions is that instead of solving the boundary value eigenproblem
+%
+\begin{align}
+    &y'' = f(\lambda, x, y, y'),& &y(a) = \alpha,& &y(b) = \beta,&
+\end{align}
+%
+we solve the initial value eigenproblem multiple times. Namely, we look for solutions of
+%
+\begin{align}
+    &y'' = f(\lambda, x, y, y'),& &y(a) = \alpha,& &y'(a) = 1&,
+\end{align}
+%
+and then we look at the other endpoint trying to find the zeros of the function
+%
+\begin{align}
+    g(\lambda) = \tilde{y}(b) - \beta,
+\end{align}
+%
+where $\tilde{y}$ is the numerical solution to the equation. The zeroes of the function $g$ are the eigenvalues we are looking for. The choice for $y'(a)$ when solving the initial value problem was completely arbitrary, and we could, if we wanted to, using another one. What we have to make sure, though, is that we are using the same one for all different iterations for $\lambda$. We will be using the secant method to find the zeros of $g$, so for that we need two initial guesses of the eigenvalue to start the iteration.
+
+The idea of the finite difference method, on the other hand, is to discretize the derivatives and solve the whole equation on a lattice as a matrix eigenproblem. In our case the problem is of the form
+%
+\begin{align}
+    &y'' = v(x) y,& &y(a) = \alpha,& &y(b) = \beta&,
+\end{align}
+%
+so, defining the lattice $\{ x_i \}_{i=0}^{N}$, where $x_i = a + i \frac{(b-a)}{N}$ discretizes our equation into
+%
+\begin{align}
+    &y_{i-1} - (2 + v_i) y_i + y_{i+1} = 0,& &y_0=\alpha,& &y_N=\beta&,
+\end{align}
+%
+where we have dropped the functional notation $y(x_i)$ in favor of the shorter $y_i$. This is just the matrix equation $M \vec{y} = \vec{b}$, where $M \in \mathbb{R}^{(N+1) \times (N+1)}$ is the tridiagonal matrix
+%
+\begin{align}
+    M = 
+    \begin{bmatrix}
+        1 & 0 & 0 & \cdots & & 0\\
+        1 & -(2 + v_1) & 1 & \cdots & & 0\\
+        0 & 1 & -(2 + v_2) & 1 & \cdots & 0\\
+        \vdots & & \ddots & & & \vdots\\
+        0 & 0 & 0 & & \cdots & 1\\
+    \end{bmatrix},
+\end{align}
+%
+and $\vec{b} = \alpha \vec{e}_0 + \beta \vec{e}_{N+1}$, $\{ e_{i} \}$ being the standard basis for the Euclidean space. To solve the tridiagonal system efficiently we will use Thomas' algorithm.
+
+
+\section{On Choice of Units}
+
+We will be solving the nondimensional version of the problem as given in equation \ref{eq:schroe}, however we are still left with a choice on the exact interval the well spans. The finite and infinite well will require slightly different treatment in this regard. For the infinite well it is convenient to choose $x \in [0, \pi]$. This way, all of our exact eigenfunctions are simply given by
+%
+\begin{align}
+    \psi_E(x) = \sin \! \left( \sqrt{E} x \right),
+\end{align}
+%
+and our eigenvalues are just the perfect squares. We have chosen to normalize the functions to the maximum, unlike the standard in quantum mechanics, which is to normalize the square. This will be a generic choice we will make in the rest of this work, since normalization doesn't matter for us, as long as it isn't so outrageous to affect accuracy.
+
+For the finite well the interval of choice for the size of the well will be $x \in [-\pi/2, \pi/2]$, while we will typically be solving the problem on a slightly larger but sill symmetric interval or on an interval starting from $0$. This choice of width is the one that respects the symmetry of the potential, and we will make use of this fact by only looking for even or odd solutions, since we know that together they will form a complete basis of the Hilbert space. The analytical expressions for these eigenfunctions are
+%
+\begin{align}
+    \psi_E^{\mathrm{even}}(x) = 
+    \begin{cases}
+        \cos(k x) & |x| \leq \pi/2\\
+        \cos(k \pi/2) e^{-\kappa (|x| - \pi/2)} & |x| \geq \pi/2,
+    \end{cases}
+\end{align} 
+%
+for the even wavefunctions, and 
+%
+\begin{align}
+    \psi_E^{\mathrm{odd}}(x) = 
+    \begin{cases}
+        \sin(k x) & |x| \leq \pi/2\\
+        \mathrm{sgn}(x) \sin(k \pi/2) e^{-\kappa (|x| - \pi/2)} & |x| \geq \pi/2,
+    \end{cases}
+\end{align} 
+%
+for the odd wavefunctions, where $k = \sqrt{E}$ and $\kappa = \sqrt{V_0 -E}$. It is not possible to write down the eigenvalues analytically, but they are the solutions to the equations
+%
+\begin{align}
+    &k \tan(k \pi/2) = \kappa,& &-k \cot(k \pi/2) = \kappa&
+\end{align}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{inf_shoot_wave.png}
+    \caption{The eigenfunctions of the infinite square well on the interval $x \in [0, \pi]$ with $N_x = 1000$ lattice points and tolerance $\epsilon = 10^{-8}$ at $\pi$.}
+    \label{fig:inf_shoot_wave}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{inf_shoot_err.png}
+    \caption{The relative error in the eigenfunctions of the infinite square well on the interval $x \in [0, \pi]$ with $N_x = 1000$ lattice points and tolerance $\epsilon = 10^{-8}$ at $\pi$.}
+    \label{fig:inf_shoot_err}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{inf_fd_eigs.png}
+    \caption{Maximal amplitude as a function of energy on the interval $[0,17]$ in a log scale. The eigenvalues are seen as spikes of the amplitude.}
+    \label{fig:inf_fd_eigs}
+\end{figure}
+
+
+\section{Results and Discussion}
+
+Using the shooting method on the infinite square well consists of enforcing the boundary condition $\psi(0) = 0$ and trying to hit $\psi(\pi) = 0$. The wavefunctions calculated this way are shown in \cref{fig:inf_shoot_wave}; at first glance they seem to match our expectations. To check the veracity of this, we calculate the relative error compared to the exact eigenfunctions using the exact eigenvalues. This produces \cref{fig:inf_shoot_err}, where we see that the error is basically constant except for artifacts at the zeros of our wavefunction, which is to be expected.
+
+The eigenvalues are also the expected perfect squares, with error of the order of the tolerance at the second end. Another thing to notice is that the errors of the eigenvalues and those of the eigenfunctions seem to be linked. A further test by calculating the error with respect to the exact eigenfunctions but using the calculated eigenvalues this time shows that no matter how exact an eigenvalue we use the error in the eigenfunctions is still coupled to the error of the eigenvalue that was calculated with it. That is why the third eigenvalue in \cref{fig:inf_shoot_err} is so much less accurate than the rest.
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{inf_fd_err.png}
+    \caption{Error of the finite difference method for the first few eigenfunctions.}
+    \label{fig:inf_fd_err}
+\end{figure}
+
+In the case of the infinite well the finite difference method will just give the constant zero function if the energy is such that it doesn't match the boundary conditions. Another numerical problem is that if we were to give the boundary conditions directly as $\psi(0)=0$, $\psi(\pi)=0$, we again would only get the trivial $\psi \equiv 0$. To avoid this we instead use the boundary conditions $\psi(0)=0$, $\psi(\pi) = \epsilon = 10^{-14}$, where we introduce a tiny non-zero value for the second boundary. The effect of this is that even when the energy doesn't match the exact eigenvalue we still get some solution but the solution has an amplitude that is $\mathcal{O}(\epsilon)$. Only when we get close to the exact eigenvalue does the amplitude of the solution start to become $\gg \epsilon$. Thus, we get something like a resonance curve with peaks at the exact eigenvalue. This is shown in \cref{fig:inf_fd_eigs}. The precision of this way of finding the eigenvalues is basically only limited by the number of energies we solve the equation at, namely the error is $\mathcal{O}\left((E_{\mathrm{max}} - E_{\mathrm{min}})/ E_N\right)$. 
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{fin_shoot_wave.png}
+    \caption{The eigenfunctions of the finite square well with $V_0 = 10$ on the interval $x \in [0, 2 \pi]$ with $N_x = 1000$ lattice points and tolerance $\epsilon = 10^{-8}$ at $2 \pi$.}
+    \label{fig:fin_shoot_wave}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{fin_shoot_err.png}
+    \caption{The absolute error in the eigenfunctions of the finite square well with $V_0 = 10$ on the interval $x \in [0, 2\pi]$ with $N_x = 1000$ lattice points and tolerance $\epsilon = 10^{-8}$ at $2 \pi$.}
+    \label{fig:fin_shoot_err}
+\end{figure}
+
+
+Once we have found the eigenvalues to our desired accuracy, we can plug them back into the differential equation and get the eigenfunctions. If we plot the absolute error of the eigenfunctions compared to the exact solutions, we get \cref{fig:inf_fd_err}.
+
+We adapt the same strategy to look for solutions for the finite well. Analytically, we know that we should expect $N = \lceil \sqrt{V_0}  \,\rceil$ eigenvalues alternating between even and odd and that they should be smaller than $V_0$ since we are looking for bound states.
+
+When using the shooting method we will opt for shooting from $0$ instead of from outside the well. This means that we have to solve the problem twice: once with a cosine-like initial condition ($\psi(0)=1$, $\psi'(0)=0$) to find the even solutions and once with a sine-like initial condition ($\psi(0)=0$, $\psi'(0)=1$) to find the odd solutions. We do this so that we don't have to deal with exponential divergences on both sides, which is the generic result for an energy that isn't one of the eigenvalues. The closer we are to the eigenvalue, the farther away the divergence is, but because of numerical error we can never reach the function being completely non-divergent. Another source of error is that for the second boundary condition we are using $\psi(b) = 0$, which is true at infinity, so out $b$ can't be too close to the edge of the well.
+
+\Cref{fig:fin_shoot_wave} shows the eigenfunctions and eigenvalues gotten in this way. \Cref{fig:fin_shoot_err}, on the other hand, is more interesting; it shows the error in the wavefunctions over the interval. We see a clearly different behavior in the well compared to outside the well, as expected, since the wavefunction has a totally different character in those two regions. We also see a jump at the boundary. This jump is caused by the error in the eigenvalue, which impedes the matching. The cusp in the exponential region on some of the curves happens out wavefunction goes from underestimating the value to overestimating it. As expected after a while the error starts exponentially growing, which is seen as linear on the logarithmic graph.
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{fin_fd_eigs.png}
+    \caption{Maximal amplitude as a function of energy on the interval $[0,10]$ in a log scale. The eigenvalues are seen as spikes of the amplitude.}
+    \label{fig:fin_fd_eigs}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{fin_fd_err.png}
+    \caption{Error of the finite difference method for the first few eigenfunctions of the finite well with $V_0 = 10$.}
+    \label{fig:fin_fd_err}
+\end{figure}
+
+For the finite difference method we do something similar as in the case of the infinite well, but here we use the boundary conditions $\psi(-3 \pi) = \pm \psi(3 \pi) = 1$, where the plus is for the even wavefunctions and the minus is for the odd ones. The $1$ is almost completely arbitrary here, but it can't be too small, since outside the well the wavefunction falls exponentially and if we reach the float limit before we reach the well from the right, our results would not retain precision.
+
+For the eigenvalue sweep we get \cref{fig:fin_fd_eigs}, wee see that we again have the peaks as in the case of the finite well, but they are now on top of a much bigger background. This is because as we each the top of the well, we get closer to the continuum, which is full of eigenstates, just not bound ones.
+
+For the error, shown in \cref{fig:fin_fd_err}, we have a similar situation to the infinite well. All the same features described there also appear in this case.
+
+\begin{table}[]
+    \begin{tabular}{|l|l||l|}
+        \hline
+        exact $E$    & calculated $\tilde{E}$ & error $|E - \tilde{E}|$\\ \hline\hline
+        0.6901730525 & 0.689806898 & 0.000262112 \\ \hline
+        2.7239406    & 2.722427224 & 0.000154994 \\ \hline
+        5.949588681  & 5.946459465 & 0.000135195 \\ \hline
+        9.68941705   & 9.686296863 & 0.000328263 \\ \hline
+    \end{tabular}
+    \caption{Eigenvalues for the finite well with $V_0=10$, calculated with the finite difference method, using $N_E = 10000$}
+\end{table}
+
+\nocite{BVP_gen}
+\nocite{fin}
+
+\printbibliography
+
+\end{document}
