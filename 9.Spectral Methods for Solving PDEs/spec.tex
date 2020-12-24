@@ -1,0 +1,207 @@
+\documentclass[10pt,a4paper,twocolumn]{article}
+%\documentclass[12pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{commath}
+\usepackage{titlesec}
+\usepackage{caption}
+\usepackage{indentfirst}
+\usepackage{hyperref}
+\usepackage{enumitem}[leftmargin=0pt]
+\usepackage{cleveref}
+\usepackage{yfonts}
+\usepackage{verbatim}
+\usepackage{bm}
+\usepackage{float}
+\usepackage{braket}
+\usepackage[stable]{footmisc}
+
+\usepackage[backend=biber]{biblatex}
+\addbibresource{spec.bib}
+
+\usepackage{graphicx}
+\graphicspath{{images/}}
+
+\renewcommand{\vec}[1]{\bm{\mathrm{#1}}}
+\newcommand{\si}[2]{$#1 \, \mathrm{#2}$}
+%\newcommand{\diff}{\mathop{}\!\mathrm{d}}
+
+\begin{document}
+
+\title{Spectral Methods for Initial Value PDEs}
+\author{Aleksandar Ivanov}
+\date{\today}
+\maketitle
+
+\section{Problem Statement}
+
+Solve the diffusion equation
+%
+\begin{align}\label{eq:dif}
+    &\frac{\partial T}{\partial t} = D \frac{\partial^2 T}{\partial x^2},& &x \in [0, a],&
+\end{align}
+%
+with the initial profile being a Gaussian
+%
+\begin{align}
+    T(x, 0) \propto \exp \left(- \frac{(x - a/2)^2}{2 \sigma^2} \right)
+\end{align}
+and the boundary condition being
+%
+\begin{enumerate}
+    \item periodic $T(0, t) = T(a, t)$,
+    \item Dirichlet homogeneous $T(0, t) = T(a, t) = 0$
+\end{enumerate}
+%
+using the Fourier method. Furthermore, when using the Dirichlet condition, use the collocation method to solve the problem again, and compare the solutions with both methods.
+
+
+\section{Methods}
+
+As stated in the problem text, we will be using two method to solve the problem: the Fourier method and the collocation method with B-splines. In all cases we will split the interval into a discrete lattice of points $\{ x_j\}_{j=0}^{N}$, $x_j = j a/N $.
+
+The Fourier method uses the idea that we can Fourier transform our equation over the variable $x$ into the ODE
+%
+\begin{align}
+    \frac{\dif \tilde{T}_k}{\dif t} = - 4 \pi^2 D \lambda_k^2 \tilde{T}_k,
+\end{align}
+%
+where, since we are doing things numerically, we have discretized the Fourier transform in the usual way, by defining
+%
+\begin{align}
+    &T(x, t) = \sum_{k=0}^{N-1} \tilde{T}_k(t) \exp(- 2 \pi i \lambda_k x),& &\lambda_k = \frac{k}{a}&.
+\end{align}
+%
+The ODE is then solved with any of the methods we have discussed previously for solving initial value ordinary differential equations \cite{me2}. Since we are using the discrete Fourier transform, with it comes the usual needed carefulness, to not get artificial effects in the solution.
+
+The collocation method has a similar idea of expanding over a complete basis of states, but it chooses the basis of localized cubic B-splines, which are splines of polynomials of degree three, such that they are non-zero only on the interval containing five of the discrete points. Namely,
+%
+\begin{align}
+    B_k(x)=
+    \begin{cases}
+        0 & x \le x_{k-2}\\
+        \frac{(x - x_{k-2})^3}{\Delta^3}  & x_{k-2} \le x \le x_{k-1}\\
+        \frac{(x - x_{k-2})^3}{\Delta^3}  - \frac{4 (x - x_{k-1})^3}{\Delta^3} & x_{k-1} \le x \le x_{k}\\
+        \frac{(x_{k+2} - x)^3}{\Delta^3}  - \frac{4 (x_{k+1} - x)^3}{\Delta^3} & x_{k} \le x \le x_{k+1}\\
+        \frac{(x_{k+2} - x)^3}{\Delta^3}  & x_{k+1} \le x \le x_{k+2}\\
+        0 & x_{k+2} \le x,
+    \end{cases}
+\end{align}
+%
+where $\Delta = a/N$. If we further add the requirement that our splines have zero second derivative at the edges of the interval (natural splines), we can write our equation as
+%
+\begin{align}
+    \sum_{k=-1}^{N+1} \dot{c_k} B_k(x_j) = D \sum_{k=-1}^{N+1} c_k B_k''(x_j) \quad \forall j,
+\end{align}
+%
+where $c_k$ are the expansion coefficients in the series for $T$
+%
+\begin{align}
+    T(x, t) = \sum_{k=-1}^{N+1} c_k(t) B_k(x).
+\end{align}
+%
+Using the exact form of $B$ we can translate this equation into the tridiagonal system
+%
+\begin{align}
+    A \frac{\dif \vec{c}}{\dif t} = B \vec{c},
+\end{align}
+%
+where $A$ and $B$ are tridiagonal matrices defined by
+%
+\begin{align}
+    A =
+    \begin{bmatrix}
+    4 & 1 \cr
+    1 & 4 & 1 \cr
+      & 1 & 4 & 1 \cr
+      &   &   & \vdots \cr
+      &   &   & 1 & 4 & 1 & \cr
+      &   &   &   & 1 & 4 & 1 \cr
+      &   &   &   &   & 1 & 4
+    \end{bmatrix},
+\end{align}
+%
+\begin{align}
+    B = \frac{6D}{\Delta^2}
+    \begin{bmatrix}
+    -2 & 1 \cr
+    1 & -2 & 1 \cr
+      & 1 & -2 & 1 \cr
+      &   &   & \vdots \cr
+      &   &   & 1 & -2 & 1 & \cr
+      &   &   &   & 1 & -2 & 1 \cr
+      &   &   &   &   & 1 & -2
+    \end{bmatrix},
+\end{align}
+%
+and $\vec{c} = (c_1, \cdots, c_{N-1})$, along with the conditions that
+%
+\begin{align}
+    &c_0 = c_N = 0,& &c_{-1} = - c_1,& &c_{N+1} = -c_{N-1},&
+\end{align}
+which hold for homogeneous Dirichlet conditions. The initial condition is implemented by applying
+%
+\begin{align}
+    A \vec{c}(0) = T(\vec{x}, t),
+\end{align}
+%
+where the application of $T$ is meant element-wise. This system can then be solved with any of the methods for solving system that we have looked at previously.
+
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{temp_four_per.pdf}
+    \caption{The solution to \cref{eq:dif} using periodic boundary conditions, solved with the Fourier method.}
+    \label{fig:four_per}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{temp_four_diri.pdf}
+    \caption{The solution to \cref{eq:dif} using Dirichlet boundary conditions, solved with the Fourier method.}
+    \label{fig:four_diri}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{temp_colloc_diri.pdf}
+    \caption{The solution to \cref{eq:dif} using the Dirichlet boundary condition, solved with the collocation method.}
+    \label{fig:colloc_diri}
+\end{figure}
+
+\section{Results and Discussion}
+
+First we handle periodic boundary conditions with the Fourier method. Since the Fourier transform automatically assumes periodicity of the function it is transforming, we can directly use the FFT as our series expansion. Solving in this way, we get \cref{fig:four_per}; we can see that the initial Gaussian only flattens out over time, while not moving its center. This is a common phenomenon in diffusion, which we have also seen in our Monte-Carlo diffusion simulation \cite{me_walks}. We can also see the effect of the periodic boundary condition in that the temperature goes to a constant instead of to $0$. This can be thought of through the concept of images; the BC makes infinitely many images of the Gaussian.
+
+We then continue on with the problem of implementing the Dirichlet conditions with the Fourier transform. The first thing to note is that, strictly speaking, we can't have a Gaussian initial condition since it doesn't satisfy the boundary conditions. However, we can have an approximate Gaussian, where we subtract the value at the end from the whole thing. The next problem lies in the basis of states. Analytically, we know that the basis satisfying the Dirichlet condition at the boundary is
+%
+\begin{align}
+    \varphi_n (x) = \sin \left( \frac{n \pi x}{a} \right),
+\end{align}
+%
+which is not the same as the Fourier basis on the interval $[0,a]$. Luckily, it is the same as the Fourier basis on the larger interval $[-a, a]$, so if we can expand out initial condition to that larger interval, we would be able to directly use (the imaginary part of) the FFT as before. To achieve this we use the odd expansion around 0 of the initial condition, since that is the one that makes the function periodic while still strictly satisfying the Dirichlet boundary conditions at $0$ and $a$.
+
+Plugging the expanded initial condition into our previous procedure we get \cref{fig:four_diri}. We notice that, on the interval $[0,a]$, the solution looks similar to the one with periodic boundary conditions, except for the fact that we converge to $0$ temperature as time goes on.
+
+For the case of the collocation method it's just a matter of implementing the matrix multiplication from above and solving the ordinary differential matrix equation. Here we will opt for the implicit Euler method for solving the equation, where we solve
+%
+\begin{align}
+    \left(A - \frac{\Delta t}{2} B\right) \vec{c}(t_{n+1}) = \left(A + \frac{\Delta t}{2} B\right) \vec{c}(t_{n}).
+\end{align}
+
+In this way we get \cref{fig:colloc_diri}, which shows the solution of the differential equation with the Dirichlet boundary conditions. It is even clearer in this figure, how we have the usual Gaussian spreading out, but totally constrained to be $0$ on both boundaries.
+
+\nocite{1}
+\nocite{2}
+
+\printbibliography
+
+\end{document}
