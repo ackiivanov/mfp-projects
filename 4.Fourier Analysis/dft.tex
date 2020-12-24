@@ -1,0 +1,320 @@
+\documentclass[10pt,a4paper,twocolumn]{article}
+%\documentclass[12pt,a4paper]{article}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{commath}
+\usepackage{titlesec}
+\usepackage{caption}
+\usepackage{indentfirst}
+\usepackage{hyperref}
+\usepackage{enumitem}[leftmargin=0pt]
+%\usepackage{multicol}
+\usepackage{yfonts}
+\usepackage{verbatim}
+\usepackage{bm}
+\usepackage{float}
+\usepackage{braket}
+\usepackage[stable]{footmisc}
+
+\usepackage[backend=biber]{biblatex}
+\addbibresource{dft.bib}
+
+\usepackage{graphicx}
+\graphicspath{{images/}}
+
+\begin{document}
+
+\title{Fourier Analysis}
+\author{Aleksandar Ivanov}
+\date{\today}
+\maketitle
+
+
+\section{Problem statement}
+
+\begin{enumerate}
+\item Consider the \emph{Discrete Fourier Transform} (DFT). Use it to calculate the Fourier Transform of a Gaussian and a few mixtures of simple sinusoidal waves. Observe the phenomena of \emph{aliasing}, when the signal has frequencies larger than the Nyquist frequency, and \emph{leakage}, when the window size and period of the signal don't agree. Check the accuracy of the method by computing the Inverse Fourier Transform. What is the time complexity of the DFT?
+
+\item Fourier analyze the provided $2.3 \,\mathrm{s}$ samples of Bach's partita for solo violin, which has been sampled at $44 100 \,\mathrm{Hz}$, $11 025 \,\mathrm{Hz}$, $5512 \,\mathrm{Hz}$, $2756 \,\mathrm{Hz}$, $1378 \,\mathrm{Hz}$ and $882 \,\mathrm{Hz}$. Determine the difference in using the different sampling frequencies.
+\end{enumerate}
+
+
+\section{Implementation}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{times.png}
+\caption{Evaluation times as a function of size $N$, tested on random arrays.}
+\label{fig:times}
+\end{figure}
+
+The DFT was implemented in \texttt{Python 3} making use of the \texttt{numpy} package. Due to \texttt{numpy}'s extensive optimization, this gives a fast way to compute the DFT, but still limited in its asymptotic speed; the time complexity is roughly $\mathcal{O} \left( N^2 \right)$, where $N$ is the size of the input array. (Figure \ref{fig:times}) \cite{nlnn}
+
+An asymptotically faster approach would be using the methodology of the Fast Fourier Transform with a divide and conquer algorithm, giving a time complexity of $\mathcal{O} \left( N \ln(N) \right) $. \cite{aliasing}
+
+The memory usage of the approach is also asymptotically $\mathcal{O} \left( N^2 \right)$, since it needs to store a matrix of size $N \times N$.
+
+
+\section{Gaussian}\label{sec:gaussian}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{gauss_sig.png}
+\caption{Normalized Gaussian with mean $\mu=0$ and standard deviation $\sigma=1$, sampled with $N=1000$ points on the interval $t \in [-5,5]$.}
+\label{fig:gauss_sig}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{gauss_ft.png}
+\caption{Real and imaginary components and magnitude of the Fourier Transform of the Normalized Gaussian with mean $\mu=0$ and standard deviation $\sigma=1$, sampled with $N=1000$ points on the interval $t \in [-5,5]$.}
+\label{fig:gauss_ft}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{gauss_ift.png}
+\caption{Real and imaginary components and magnitude of $\mathcal{F}^{-1} \left( \mathcal{F} \left( N(0, 1) \right) \right)$, sampled with $N=1000$ points on the interval $t \in [-5,5]$.}
+\label{fig:gauss_ift}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{gauss_prec.png}
+\caption{Absolute difference between the Gaussian signal and its Fourier transformed and back counterpart as a function in the original time domain.}
+\label{fig:gauss_prec}
+\end{figure}
+
+To calculate the Fourier Transform of a Gaussian, we use the Normalized Gaussian (Figure \ref{fig:gauss_sig}). We choose to sample the Gaussian on the interval $[-5,5]$ with $N=1000$ sample points, this gives us a critical frequency of $\nu_c = 0.5$. Because the Fourier Transform is an intrinsically complex process and we are plotting the real and imaginary parts, stray frequency dependent phases would give us an unrecognizable result. From the viewpoint of the DFT, this happens because our signal is centered in the middle of our array, instead of at one of the end, and we know that shifts in $t$-space cause phases in $f$-space. This is why we shift the signal by half the size of our interval; in terms of frequency this is achieved by multiplying the $k$-th bucket by the phase $\exp(i \pi k)$. \cite{magajna}
+
+The Fourier signal acquired in such a way, obviously has to be shifted again, to get the frequencies on the interval $[-\nu_c, \nu_c]$. Since the DFT assumes the function is periodic outside of the window, a shift in any direction by half the length of the array gives us the desired result.
+
+The results of this procedure are plotted in figure \ref{fig:gauss_ft}; it shows the real and imaginary parts and magnitude of the Fourier Transform. The result is as expected, another real Gaussian, with negligible imaginary component (which is non-zero due to floating point error). If we had not done the procedure above, we would have gotten the same result but modulated by a sinusoid, and with mixed real and imaginary components. The magnitude would still have been the same since it is independent of phases.
+
+Figures \ref{fig:gauss_ift} and \ref{fig:gauss_prec}, show the inverse transform of the Fourier transformed version, which, as expected, bears a resemblance to the original signal, and the difference between the original signal and the reconstructed version. It confirms that the error of the algorithm is close to floating point error. The same procedure of shifting the signal was used again in calculating the Inverse Fourier Transform.
+
+
+\section{Regular periodic function}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{regper_sig.png}
+\caption{The function $f$ defined in eq.\ref{eq:regper} along with its sampling using $N=200$ points on the interval $t \in [0, 240]$.}
+\label{fig:regper_sig}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{regper_ft.png}
+\caption{Real and imaginary components and magnitude of the Fourier Transform of the function $f$ defined in eq.\ref{eq:regper}, sampled with $N=200$ points on the interval $t \in [0,240]$.}
+\label{fig:regper_ft}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{regper_ift.png}
+\caption{Real and imaginary components and magnitude of $\mathcal{F}^{-1} \left( \mathcal{F} \left( f \right) \right)(t)$(eq.\ref{eq:regper}), sampled with $N=200$ points on the interval $t \in [0,240]$.}
+\label{fig:regper_ift}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{regper_prec.png}
+\caption{Absolute difference between $f$ (eq.\ref{eq:regper}) and its Fourier transformed and back counterpart as a function in the original time domain.}
+\label{fig:regper_prec}
+\end{figure}
+
+The term regular here refers to the fact that the period of the signal matches the size of the window used in the computation of the DFT. The interval of $t$ values used was $[0, 240]$ and the function was (fig.\ref{fig:regper_sig})
+%
+\begin{align}\label{eq:regper}
+f(t) = \sin \left( \frac{2 \pi t}{30} \right) - 4 \sin \left( \frac{2 \pi t}{20} \right) + 9 \sin \left( \frac{2 \pi t}{10} \right)
+\end{align}
+
+Since we are dealing with a periodic function, whose period matches the window size, we are in the best possible case for the DFT. We can get all of the information contained in the function without losses (up to floating point error). This is born out by figures \ref{fig:regper_ift} and \ref{fig:regper_prec}, which show us that the reconstruction of the function looks almost exactly like it. Of the Fourier Transform, we would expect to get spikes in the imaginary part, at the frequencies we put in. And this is exactly what we see in figure \ref{fig:regper_ft}. We also see that the relative signs and sizes of the peaks are as expected from the amplitudes we put in.
+
+
+\section{Irregular Periodic Function}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{irregper_sig.png}
+\caption{The function $g$ defined in eq.\ref{eq:irregper} along with its sampling using $N=100$ points on the interval $t \in [0, 70]$.}
+\label{fig:irregper_sig}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{irregper_ft.png}
+\caption{Real and imaginary components and magnitude of the Fourier Transform of the function $g$ defined in eq.\ref{eq:irregper}, sampled with $N=100$ points on the interval $t \in [0,70]$.}
+\label{fig:irregper_ft}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{irregper_ift.png}
+\caption{Real and imaginary components and magnitude of $\mathcal{F}^{-1} \left( \mathcal{F} \left( g \right) \right)(t)$(eq.\ref{eq:irregper}), sampled with $N=100$ points on the interval $t \in [0,70]$.}
+\label{fig:irregper_ift}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{irregper_prec.png}
+\caption{Absolute difference between $g$ (eq.\ref{eq:irregper}) and its Fourier transformed and back counterpart as a function in the time domain.}
+\label{fig:irregper_prec}
+\end{figure}
+
+What happens when the period of the function and the size of the window don't match? In that case the DFT assumes periodicity with the size of its window, so we get a signal has a periodic component with the original frequency, but now also has other component so as to make it discontinuous at the boundary of the window. This is the phenomenon of \emph{spectral leakage}. \cite{leakage}
+
+To demonstrate this we use the function
+%
+\begin{align}\label{eq:irregper}
+g(t) = \sin \left( \frac{2 \pi t}{3 \pi^2} \right) - 4 \sin \left( \frac{2 \pi t}{7} \right) + 9 \sin \left( \frac{2 \pi t}{2.7358} \right)
+\end{align}
+%
+on the domain $t \in [0, 70]$. From the plot in figure \ref{fig:irregper_sig} we can clearly see that the function is not periodic on this interval. As a direct consequence we see, from figure \ref{fig:irregper_ft}, that the real component of the Fourier Transform, which we know should be $0$, gains a considerable contribution. Generically, leakage doesn't affect the position of the peaks in the magnitude/power spectrum of the signal by much, which we can see in our case, although it considerably affects the relative amplitudes we have.
+
+Figure \ref{fig:irregper_prec} shows that the error on our domain is still very good as before, but once we leave our domain, the error becomes of the order of the function value, which makes sense since outside of our original domain, the DFT is basically approximating a totally different function, one which is discontinuous at the end of the original domain, and has a period the size of the window.
+
+
+\section{Frequency-shifted Gaussian}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{aliasing.png}
+\caption{The actual Fourier Transform and the DFT of the frequency-shifted Gaussian (eq.\ref{fgauss}) with parameters $\mu = 0$, $\sigma = 0.1$ and $\rho = 3$.}
+\label{fig:aliasing}
+\end{figure}
+
+Working discretely, as we have, there is obviously a maximal frequency we can reliably get from our signal -- the Nyquist frequency $\nu_c = \frac{N}{2 T}$, where $N$ is the number of samples and $T$ is the size of out window. So what happens if our signal has frequencies that are larger than this maximal frequency $\nu_c$? In such a case, we get the phenomenon called \emph{aliasing}; the frequencies outside the range $[-\nu_c, \nu_c]$ get shifted into this range as their remainder modulo $2 \nu_c$. \cite{aliasing}
+
+We can demonstrate this effect with a frequency-shifted, narrow Gaussian
+%
+\begin{align}\label{fgauss}
+N (\mu, \sigma, \rho)(t) = \frac{1}{\sqrt{2 \pi \sigma^2}} \exp \left( -\frac{t^2}{2 \sigma^2} + 2 \pi i \rho t \right)
+\end{align}
+%
+where $\mu$ is position of the peak in $t$-space, $\sigma$ is the standard deviation in $t$-space and $\rho$ is the position of the peak in $f$-space. In $t$-space this function would be complex, and it's real and imaginary components would look like sinusoidally modulated Gaussians.
+
+Since the uncertainty principle for Gaussian signals says that
+%
+\begin{align}
+\sigma_t \sigma_f = \frac{1}{2 \pi}
+\end{align}
+%
+if we choose a narrow peak in $t$-space, we will get a wide peak in $f$-space. Together with the shifting of the frequency peak, this will force a visible part of the frequencies to shift to values higher than our Nyquist frequency. Since we're dealing with Gaussians again, we have to do the whole shifting procedure described in section \ref{sec:gaussian}.
+
+Figure \ref{fig:aliasing} shows this; we see that the right tail of our Gaussian gets shifted to the leftmost part of the interval, even though theoretically, we should get values close to $0$ in that region.
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{guitar_ft.png}
+\caption{Fourier Spectrum of the provided guitar note sample in a logarithmic power scale.}
+\label{fig:guitar_ft}
+\end{figure}
+
+\section{Bach sample}
+
+Listening to the Bach audio files, the immediate difference one notices is that at lower sampling frequencies the audio is lower pitched, which makes sense since $\nu_c = \nu_s/2$, so only lower frequencies are kept in the FT. But we don't hear the audio as having a lower volume. This happens because sampling at a lower frequency doesn't act as a filter; we know that the DFT too, conserves energy through Parseval's theorem, and this appears as the aliasing mentioned before. New aliased peaks appear in the range even though, they didn't really exist when the recording was made.
+
+We can see this in figure \ref{fig:bach_ft}; as we go to higher and higher sampling rates, some peaks at lower frequencies disappear because they were an artifact of aliasing. Figure \ref{fig:bach_ft} only shows the signal up to $\approx 1500 \, \mathrm{Hz}$ and in a linear power scale to emphasize the previous observation; smaller peaks of the signal could be observed at larger frequencies using a logarithmic power scale.
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{fork_ft.png}
+\caption{Fourier Spectrum of the provided tuning fork on guitar soundboard sample in a logarithmic power scale.}
+\label{fig:fork_ft}
+\end{figure}
+
+
+\section{Guitar and Tuning Fork}
+
+
+
+The provided guitar note sample's Fourier Transform is plotted in figure \ref{fig:guitar_ft}, We can see a clear fundamental frequency peak at around $82 \,\mathrm{Hz}$ and all of its harmonics at integer multiples of the fundam-
+
+
+
+\onecolumn
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.48]{bach_ft.png}
+\caption{Fourier Transform of the provided Bach samples for the different sampling frequencies.}
+\label{fig:bach_ft}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.48]{akres_ft.png}
+\caption{Fourier Transform of the provided Acoustic Resonator samples for the different hits.}
+\label{fig:akres_ft}
+\end{figure}
+
+\twocolumn
+
+\noindent
+ental. We also notice that the loudest frequency isn't actually the fundamental, but the first harmonic. The combination which harmonics get excited and their relative amplitude gives the instrument its characteristic timbre.
+
+A similar plot, now for the tuning fork is shown in figure \ref{fig:fork_ft}. On it we can clearly see the fundamental at almost exactly $440 \,\mathrm{Hz}$ and a its harmonics at integer multiples of the fundamental. The peaks are much more pronounced compared to the guitar, which is to be expected since tuning forks are made to vibrate at as close to a specific frequency as possible.
+
+
+\section{Additional Problem Statement}
+
+Do a Fourier analysis of the provided samples from the experiment \emph{Acoustic Resonator}.
+
+
+\section{Acoustic Resonator}
+
+Figure \ref{fig:akres_ft} shows the Fourier Transform of the Acoustic resonator experimental samples. The best samples seem to be ones shown in the first and fifth plots of figure \ref{fig:akres_ft}. The powerful and weak hits don't excite enough of the modes of the resonator and instead excite more low frequency noise, from other parts of the experiment. Using the actual dimensions of the resonator $L_x = 0.567 \,\mathrm{m}$, $L_y = 0.385 \,\mathrm{m}$ and $L_x = 0.24 \,\mathrm{m}$, we generate table \ref{tab:resonances}, which shows the first few resonant frequencies along with their mode numbers. We see that quite a few peaks in the Fourier Spectrum have theoretical counterparts in the table.
+
+\begin{table}
+\centering
+\captionsetup{justification=centering}
+\begin{tabular}{|c|c|c|c|}
+\hline
+$n_x$ & $n_y$ & $n_z$ & $\nu$ \\ \hline \hline
+1 & 0 & 0 & 305 \\ \hline
+0 & 1 & 0 & 457 \\ \hline
+1 & 1 & 0 & 546 \\ \hline
+2 & 0 & 0 & 610 \\ \hline
+0 & 0 & 1 & 716 \\ \hline
+2 & 1 & 0 & 754 \\ \hline
+1 & 0 & 1 & 773 \\ \hline
+0 & 1 & 1 & 850 \\ \hline
+0 & 2 & 0 & 888 \\ \hline
+1 & 1 & 1 & 906 \\ \hline
+3 & 0 & 0 & 914 \\ \hline
+2 & 0 & 1 & 945 \\ \hline
+1 & 2 & 0 & 953 \\ \hline
+\end{tabular}
+\caption{First few predicted resonant frequencies of the Acoustic Resonator.}
+\label{tab:resonances}
+\end{table}
+
+
+\printbibliography
+
+\end{document}
