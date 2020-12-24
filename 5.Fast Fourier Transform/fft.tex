@@ -1,0 +1,196 @@
+\documentclass[10pt,a4paper,twocolumn]{article}
+%\documentclass[12pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{commath}
+\usepackage{titlesec}
+\usepackage{caption}
+\usepackage{indentfirst}
+\usepackage{hyperref}
+\usepackage{enumitem}[leftmargin=0pt]
+\usepackage{cleveref}
+\usepackage{yfonts}
+\usepackage{verbatim}
+\usepackage{bm}
+\usepackage{float}
+\usepackage{braket}
+\usepackage[stable]{footmisc}
+
+\usepackage[backend=biber]{biblatex}
+\addbibresource{fft.bib}
+
+\usepackage{graphicx}
+\graphicspath{{images/}}
+
+\newcommand{\si}[2]{$#1 \, \mathrm{#2}$}
+
+\begin{document}
+
+\title{Fast Fourier Transforms}
+\author{Aleksandar Ivanov}
+\date{\today}
+\maketitle
+
+\section{Problem Statement}
+
+You're provided with audio samples of calls of the Eurasian eagle-owl (\emph{Bubo bubo}). Calculate the autocorrelation functions and Fourier Transforms of the calls and try to determine which owl is recorded in which sample.
+
+
+\section{Methodology}
+
+To analyze the samples we use the \texttt{numpy} package of Python3. Speciffically, the function \texttt{numpy.fft.ftt} to calculate the Fast Fourier Transform \cite{Cooley1965AnAF} of all the signals and the \texttt{numpy.correlate} \cite{npcor} function to calculate the autocorrelation of the signals.
+
+The \texttt{numpy.correlate} function has three modes \texttt{full}, \texttt{same} and \texttt{valid} all of which try to solve particular problems of discretizing the autocorrelation. The default mode \texttt{valid} gives a result only when we have total overlap, which in the case of the autocorrelation is only a single point, which makes it unusable. For us, the mode \texttt{full} is most usefull because it has the minimal amount of edge effects, while still giving us a meaningful result. This mode calculates the autocorrelation at all points where there is \emph{some} overlap, outputting an array of size $2N - 1$, where $N$ is the size of our signal array. In effect, this mode zero pads the signal \cite{zpad} for us before calculating the autocorrelation.
+
+The form of the cross-correlation that \texttt{numpy.correlate} uses is
+%
+\begin{align}
+\phi_k(u, v) = \sum_{n=-N+1}^{N-1} \tilde{u}_{n+k} (\tilde{v}_{n})^{*}
+\end{align}
+%
+where $\tilde{u}$ is the zero padded verison of the array $u$ and $^*$ denotes complex conjugation.
+
+The evaluation time for an input array of size $N$ for \texttt{numpy.fft.ftt} is shown in \cref{fig:fft_times}, while the one for \texttt{numpy.correlate} is shown in \cref{fig:acr_times}. We see that the FFT follows the predicted $N \ln(N)$ asymptotic time complexity. \cite{nlnn}The autocorrelation time complexity is a bit harder to read; all we can say is that it grows faster than a power law.
+
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{fft_times.png}
+\caption{Evaluation time $t$ for \texttt{numpy.fft.ftt} as a function of array size $N$, tested on random arrays.}
+\label{fig:fft_times}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{acr_times.png}
+\caption{Evaluation time $t$ for \texttt{numpy.correlate} as a function of array size $N$, tested on random arrays.}
+\label{fig:acr_times}
+\end{figure}
+
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{Fourier_Transform_of_bubomono.txt.png}
+\caption{Fourier spectrum of \texttt{bubomono.txt} in a log scale.}
+\label{fig:fft_bubomono}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{Fourier_Transform_of_bubo2mono.txt.png}
+\caption{Fourier spectrum of \texttt{bubo2mono.txt} in a log scale.}
+\label{fig:fft_bubo2mono}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{Fourier_Transform_of_mix.txt.png}
+\caption{Fourier spectrum of \texttt{mix.txt} in a log scale.}
+\label{fig:fft_mix}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{Fourier_Transform_of_mix1.txt.png}
+\caption{Fourier spectrum of \texttt{mix1.txt} in a log scale.}
+\label{fig:fft_mix1}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{Fourier_Transform_of_mix2.txt.png}
+\caption{Fourier spectrum of \texttt{mix2.txt} in a log scale.}
+\label{fig:fft_mix2}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{Fourier_Transform_of_mix22.txt.png}
+\caption{Fourier spectrum of \texttt{mix22.txt} in a log scale.}
+\label{fig:fft_mix22}
+\end{figure}
+
+
+\section{Fourier Spectrum}
+
+Plotting the Fourier spectra of the samples we get \cref{fig:fft_bubomono,fig:fft_bubo2mono,fig:fft_mix,fig:fft_mix1,fig:fft_mix2,fig:fft_mix22}. In \cref{fig:fft_bubomono}, the almost backgroundless signal for the first owl, we can very clearly see peaks at \si{379}{Hz}, \si{759}{Hz}, \si{1143}{Hz}, \si{1521}{Hz}, \si{1892}{Hz}..., which are clearly the harmonics of the owl's call. Similarly, in \cref{fig:fft_bubo2mono} we see \si{334}{Hz}, \si{669}{Hz}, \si{1005}{Hz}, \si{1340}{Hz}, \si{1675}{Hz}..., which are the harmonics of the second owl's call. These are going to help us differentiate the owls in the samples with more background noise. Looking at \cref{fig:fft_mix,fig:fft_mix1,fig:fft_mix2,fig:fft_mix22}, we immediately see that we can at least differentiate the fundamental mode. Comparing the frequency at those peaks, we get the guesses
+%
+\begin{align}
+\mathtt{mix.txt} \quad &\Rightarrow \quad \mathrm{owl}\ 1\notag\\
+\mathtt{mix1.txt} \quad &\Rightarrow \quad \mathrm{owl}\ 1\notag\\
+\mathtt{mix2.txt} \quad &\Rightarrow \quad \mathrm{owl}\ 1\notag\\
+\mathtt{mix22.txt} \quad &\Rightarrow \quad \mathrm{owl}\ 2
+\end{align}
+
+The river in the samples also cases a peak in frequency; when it's a small stream we get the humps in \cref{fig:fft_mix,fig:fft_mix1} and less prominently in \cref{fig:fft_mix2}, when it's a more vigorous part of the river, the effect becomes just noise. This is something we can hear by listening to the samples.
+
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{Autocorrelation_of_bubomono.txt.png}
+\caption{Autocorrelation of \texttt{bubomono.txt} signal.}
+\label{fig:acr_bubomono}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{Autocorrelation_of_bubo2mono.txt.png}
+\caption{Autocorrelation of \texttt{bubo2mono.txt} signal.}
+\label{fig:acr_bubo2mono}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{Autocorrelation_of_mix.txt.png}
+\caption{Autocorrelation of \texttt{mix.txt} signal.}
+\label{fig:acr_mix}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{Autocorrelation_of_mix1.txt.png}
+\caption{Autocorrelation of \texttt{mix1.txt} signal.}
+\label{fig:acr_mix1}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{Autocorrelation_of_mix2.txt.png}
+\caption{Autocorrelation of \texttt{mix2.txt} signal.}
+\label{fig:acr_mix2}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{Autocorrelation_of_mix22.txt.png}
+\caption{Autocorrelation of \texttt{mix22.txt} signal.}
+\label{fig:acr_mix22}
+\end{figure}
+
+
+\section{Autocorrelation}
+The autocorrelation graphs of the different signals are plotted in \cref{fig:acr_bubomono,fig:acr_bubo2mono,fig:acr_mix,fig:acr_mix1,fig:acr_mix2,fig:acr_mix22}. The range we have chosen starts at $0$, since the autocorrelation of a real function is symmetric. We see that, in general, the autocorrelation is a function that oscillates, since our signal is also oscillatory, and that the amplitude of these oscillations mostly goes down as we go to higher offsets, an effect of the zero padding. As expected, the highest value is always at the offset of $0$. The more noise we have, the higher this peak at $0$ will be relative to the rest of the autocorrelation, since the signal is less similar to itself at non-zero offsets. The same effect makes the oscillations less regular.
+
+
+\printbibliography
+
+\end{document}
