@@ -1,4 +1,4 @@
-'''A variety of methods to solve first order ordinary differential equations.
+'''A variety of methods to solve ordinary differential equations.
 
 AUTHOR:
     Jonathan Senning <jonathan.senning@gordon.edu>
