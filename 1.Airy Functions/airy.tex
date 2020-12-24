@@ -1,0 +1,290 @@
+\documentclass[10pt,a4paper,twocolumn]{article}
+%\documentclass[12pt,a4paper]{article}
+
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath}
+\usepackage{commath}
+\usepackage{titlesec}
+\usepackage{caption}
+\usepackage{indentfirst}
+\usepackage{hyperref}
+\usepackage{enumitem}[leftmargin=0pt]
+\usepackage{multicol}
+\usepackage{yfonts}
+\usepackage{verbatim}
+\usepackage{bm}
+\usepackage{float}
+
+\usepackage[backend=biber]{biblatex}
+\addbibresource{airy.bib}
+
+\usepackage{graphicx}
+
+\newcommand{\Ai}{\mathrm{Ai}}
+\newcommand{\Bi}{\mathrm{Bi}}
+
+
+\begin{document}
+
+\title{Numerical Approximations to the Airy functions}
+\author{Aleksandar Ivanov}
+\date{\today}
+\maketitle
+
+\section{Problem statement}
+
+By using a combination of the Taylor series approximation and the asymptotic approximation for the Airy $\Ai$ and $\Bi$ functions find the most efficient way to calculate their values on the whole real axis with an \textbf{absolute} error of less than $10^{-10}$. Do the same taking into account \textbf{relative} error and see if an error of less than $10^{-10}$ is achievable.
+
+\section{Mathematical preparation}
+
+To get the Taylor series around $x=0$ for both of the Airy functions we need to introduce the two series
+%
+\begin{align}
+  f(x) &= \sum_{k=0}^\infty
+  \left(\frac{1}{3}\right)_k \frac{3^k x^{3k}}{(3k)!} \>, \\
+  g(x) &= \sum_{k=0}^\infty
+  \left(\frac{2}{3}\right)_k \frac{3^k x^{3k+1}}{(3k+1)!} \>.
+\end{align}
+
+Using these series and the fact that at $x=0$ the Airy functions have the values
+%
+\begin{align}
+\alpha &= \Ai(0) = \Bi(0)/\sqrt{3}\approx 0.355028053887817239 \notag\\
+\beta &= -\Ai'(0) = \Bi'(0)/\sqrt{3}\approx 0.258819403792806798 \notag
+\end{align}
+%
+we get the representations
+%
+\begin{align}
+  \Ai(x) &= \alpha f(x) - \beta g(x)\>, \\
+  \Bi(x) &= \sqrt{3}\, \left(\alpha f (x) + \beta g(x) \right)\>.
+\end{align}
+
+Theoretically, the series converge for all real $x$ (and even complex $x$!), but practically they are usually useful in a neighborhood around $0$.
+
+For absolutely large arguments we can use an asymptotic approximation \cite{formulas} instead. For that we define the auxiliary asymptotic series
+%
+\begin{align}
+  L(z) &\sim \sum_{s=0}^\infty \frac{u_s}{z^s}\>, \\
+  P(z) &\sim \sum_{s=0}^\infty (-1)^s \frac{u_{2s}}{z^{2 s}}\>, \\
+  Q(z) &\sim \sum_{s=0}^\infty (-1)^s \frac{u_{2s+1}}{z^{2 s+1}}\>,
+\end{align}
+%
+where the symbol $u_s$ is defined as
+%
+\begin{align}
+u_s = \frac{ \Gamma(3s + \frac{1}{2})}
+        {54^s s!\, \Gamma(s + \frac{1}{2}) }.
+\end{align}
+%
+If we further define the variable $\xi = \frac{2}{3} \abs{x}^{\frac{3}{2}}$, we get the series
+%
+\begin{align}
+\Ai(x) &\sim  \frac{\mathrm{e}^{-\xi}}{2\sqrt{\pi} x^{1/4}} \, L(-\xi) \>, \\
+\Bi(x) &\sim  \frac{\mathrm{e}^{\xi}} { \sqrt{\pi} x^{1/4}} \, L(\xi)\>
+\end{align}
+%
+for large positive argument, and
+%
+\begin{align}
+    \Ai(x) &\sim  \frac{\left[\sin(\xi-\pi/4) \, Q(\xi)
+                    + \cos(\xi-\pi/4) \, P(\xi)\right]}{\sqrt{\pi} (-x)^{1/4}}
+     \>, \\
+    \Bi(x) &\sim  \frac{\left[- \sin(\xi-\pi/4) \, P(\xi)
+      + \cos(\xi-\pi/4) \, Q(\xi)\right]}{\sqrt{\pi} (-x)^{1/4}}
+    \>
+\end{align}
+%
+for large negative argument.
+
+\section{Methods}
+
+We will be calculating the functions using the \texttt{mpmath} package \cite{docs} in Python keeping $20$ significant digits. We will then compare to the built-in Airy functions from the package \texttt{scipy.special}.
+
+For the Taylor series, we will be summing terms until they become smaller, in absolute value, than the error we're aiming for, namely, $10^{-10}$.
+
+For the asymptotic series, we will continue the sum until one of two things happens; either the terms become smaller than the error, as before,  or the terms start increasing. We do this since asymptotic series generically diverge, so it may happen that we never reach our desired error.
+
+
+\section{Airy $\Ai$ function}
+
+\begin{figure}[H]
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.49]{A+_abs.png}
+\caption{Absolute error for positive $x$ for the Airy $\Ai$ function.}
+\label{fig:A+_abs}
+\end{figure}
+
+The Airy $\Ai$ function is bounded everywhere on the real axis, which makes it somewhat easier to handle.
+
+For positive $x$, figure \ref{fig:A+_abs} shows us the absolute error compared to the built-in function for the Taylor series and the asymptotic series. As expected, the asymptotic series is better for larger $x$ while the Taylor series is better for smaller $x$. We see that the changeover happens at around $x \approx 7.5$.
+
+\begin{figure}[H]
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.49]{A+_rel.png}
+\caption{Relative error for positive $x$ for the Airy $\Ai$ function.}
+\label{fig:A+_rel}
+\end{figure}
+
+Although, if we wanted to loosen our $10^{-10}$ requirement, figure \ref{fig:A+_time}, which plots the time of execution, shows us that we could use the asymptotic series for even smaller $x$ and gain on time efficiency.
+
+\begin{figure}[H]
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.49]{A+_time.png}
+\caption{Evaluation time for positive $x$ for the Airy $\Ai$ function.}
+\label{fig:A+_time}
+\end{figure}
+
+For the relative error, we have the same trend but we can't reach an error of less than $10^{-4}$ at around the changeover value. (fig. \ref{fig:A+_rel})
+
+\begin{figure}[H]
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.49]{A-_abs.png}
+\caption{Absolute error for negative $x$ for the Airy $\Ai$ function.}
+\label{fig:A-_abs}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.49]{A-_rel.png}
+\caption{Relative error for negative $x$ for the Airy $\Ai$ function.}
+\label{fig:A-_rel}
+\end{figure}
+
+For negative $x$ the situation is similar, but now the changeover happens at around $x \approx -11.0$, where the absolute error is around $10^{-7}$ as is the relative one. Again, the asymptotic series is more time efficient over the whole domain we're looking at, but it's not at all accurate around $x=0$. The corresponding graphs for negative $x$ are figures \ref{fig:A-_abs}, \ref{fig:A-_rel} and \ref{fig:A-_time}.
+
+\begin{figure}[H]
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.49]{A-_time.png}
+\caption{Evaluation time for negative $x$ for the Airy $\Ai$ function.}
+\label{fig:A-_time}
+\end{figure}
+
+
+\section{Airy $\Bi$ function}
+
+\begin{figure}[H]
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.49]{B+_abs.png}
+\caption{Absolute error for positive $x$ for the Airy $\Bi$ function.}
+\label{fig:B+_abs}
+\end{figure}
+
+The Airy Bi function is more difficult to handle since it's exponentially increasing as $x$ becomes large and positive.
+
+For negative x $\Bi$ behaves similarly to $\Ai$ so figures \ref{fig:B-_abs} and \ref{fig:B-_rel}, which show us the absolute and relative errors, being very similar to the ones from $\Ai$ is not surprising; we have the same changeover at $x \approx -11.0$ and same absolute error of $10^{-4}$.
+
+\begin{figure}[H]
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.49]{B+_rel.png}
+\caption{Relative error for positive $x$ for the Airy $\Bi$ function.}
+\label{fig:B+_rel}
+\end{figure}
+
+As with the $\Ai$ function the evaluation time of the asymptotic series is almost always less than the Taylor series and getting smaller as we go off to infinity, since we need less terms there.
+
+The positive $x$ absolute and relative errors for $\Bi$ are shown in figures \ref{fig:B+_abs} and \ref{fig:B+_rel}, respectively. Since $\Bi$ is exponentially growing, the better measure for us is the relative error. The asymptotic series, for values larger than $5.0$, gives a respectable error of $10^{-3}$ and and shrinking as we go off to infinity.
+
+\begin{figure}[H]
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.49]{B-_abs.png}
+\caption{Absolute error for negative $x$ for the Airy $\Bi$ function.}
+\label{fig:B-_abs}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.49]{B-_rel.png}
+\caption{Relative error for negative $x$ for the Airy $\Bi$ function.}
+\label{fig:B-_rel}
+\end{figure}
+
+Surprisingly the Taylor series, unlike in the $\Ai$ case, does much better, keeping the relative error at around $10^{-15}$ for quite a range of $x$. For this, though, we pay a time price, as the Taylor series needs more and more terms to reach the error bound.
+
+
+\section{Additional question}
+
+Find the first $100$ zeros $\{a_i\}_{i=1}^{100}$ of the Airy $\Ai$ function and the first $100$ zeros $\{b_i\}_{i=1}^{100}$ of the Airy $\Bi$ function with $x<0$. Compare your values with the formulas
+%
+\begin{align}
+  a_s &= - \phi \left( \frac{3\pi(4s-1)}{8} \right) \>, \\
+  b_s &= - \phi \left( \frac{3\pi(4s-3)}{8} \right) \>,
+\end{align}
+%
+where
+%
+\begin{align}
+\phi(z) \sim z^{2/3} \Big( 1 + \frac{5}{48} \, z^{-2}
+  -\frac{5}{36} \, z^{-4}
+  +\frac{77125}{82944} \, z^{-6} \notag\\
+  -\frac{108056875}{6967296} \, z^{-8} + \ldots \Big) \>.
+\end{align}
+
+
+\section{Finding zeros}
+
+To find the actual zeros we use the \texttt{findroot} method of the package \texttt{mpmath} and use the approximate zeros from the formula as an approximation for \texttt{findroot}. Plotting the absolute and relative errors as a function of the zeros then gives figures \ref{fig:zeros_abs} and \ref{fig:zeros_rel}. We can see that the asymptotic formula is very good from around $5.0$ onward.
+
+\begin{figure}[h]
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.49]{zeros_abs.png}
+\caption{Absolute error for zeros of the Airy functions.}
+\label{fig:zeros_abs}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.49]{zeros_rel.png}
+\caption{Relative error for zeros of the Airy functions.}
+\label{fig:zeros_rel}
+\end{figure}
+
+The first $40$ calculated zeros are given in table \ref{tab:vals}.
+
+\begin{table}
+\begin{tabular}{|l|l|l||l|l|l|}
+\hline
+s & $a_s$ & $b_s$ & s & $a_s$ & $b_s$\\ \hline \hline
+1  & -2.33811 & -1.17371 & 21 & -21.2248 & -20.8825 \\ \hline
+2  & -4.08795 & -3.27109 & 22 & -21.9014 & -21.5644 \\ \hline
+3  & -5.52056 & -4.83074 & 23 & -22.5676 & -22.2357 \\ \hline
+4  & -6.78671 & -6.16985 & 24 & -23.2242 & -22.8971 \\ \hline
+5  & -7.94413 & -7.37676 & 25 & -23.8716 & -23.549  \\ \hline
+6  & -9.02265 & -8.49195 & 26 & -24.5103 & -24.192  \\ \hline
+7  & -10.0402 & -9.53819 & 27 & -25.1408 & -24.8266 \\ \hline
+8  & -11.0085 & -10.5299 & 28 & -25.7635 & -25.4531 \\ \hline
+9  & -11.936  & -11.477  & 29 & -26.3788 & -26.0721 \\ \hline
+10 & -12.8288 & -12.3864 & 30 & -26.987  & -26.6838 \\ \hline
+11 & -13.6915 & -13.2636 & 31 & -27.5884 & -27.2885 \\ \hline
+12 & -14.5278 & -14.1128 & 32 & -28.1833 & -27.8866 \\ \hline
+13 & -15.3408 & -14.9371 & 33 & -28.772  & -28.4784 \\ \hline
+14 & -16.1327 & -15.7392 & 34 & -29.3548 & -29.0641 \\ \hline
+15 & -16.9056 & -16.5214 & 35 & -29.9318 & -29.644  \\ \hline
+16 & -17.6613 & -17.2855 & 36 & -30.5033 & -30.2182 \\ \hline
+17 & -18.4011 & -18.0331 & 37 & -31.0695 & -30.787  \\ \hline
+18 & -19.1264 & -18.7655 & 38 & -31.6306 & -31.3506 \\ \hline
+19 & -19.8381 & -19.4839 & 39 & -32.1867 & -31.9092 \\ \hline
+20 & -20.5373 & -20.1892 & 40 & -32.7381 & -32.463  \\ \hline
+\end{tabular}
+\caption{First $40$ zeros of the Airy functions.}
+\label{tab:vals}
+\end{table}
+
+\printbibliography
+
+\end{document}
