@@ -1,0 +1,174 @@
+\documentclass[10pt,a4paper,twocolumn]{article}
+%\documentclass[12pt,a4paper]{article}
+
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{commath}
+\usepackage{titlesec}
+\usepackage{caption}
+\usepackage{indentfirst}
+\usepackage{hyperref}
+\usepackage{enumitem}[leftmargin=0pt]
+\usepackage{multicol}
+\usepackage{yfonts}
+\usepackage{verbatim}
+\usepackage{bm}
+\usepackage{float}
+
+\usepackage[backend=biber]{biblatex}
+\addbibresource{walks.bib}
+
+\usepackage{graphicx}
+
+\newcommand{\MAD}{\mathrm{MAD}}
+
+
+\begin{document}
+
+\title{Random Walks}
+\author{Aleksandar Ivanov}
+\date{\today}
+\maketitle
+
+
+\section{Problem statement}
+
+Make a computer simulation of 2D random walk for \textbf{L\'evy walks} and \textbf{L\'evy flights}. All of them should start at the origin $(0,0)$, their direction needs to be isotropically distributed over $[0, 2\pi]$ and their lengths have to be Pareto distributed \cite{sampling}, i.e
+%
+\begin{align}
+f_P(x)= \begin{cases} 
+      \frac{\alpha x_m^\alpha}{x^{\alpha+1}} & x \geq x_m \\
+      0 & x < x_m. \\
+   \end{cases}
+\end{align}
+%
+Compute the standard deviation (or an estimator thereof) and check if the theoretical predictions for $\gamma(\mu)$ hold, where gamma is defined as $\sigma^2(t) \propto t^{\gamma}$ and $\mu = \alpha + 1$ is the Pareto distribution power.
+
+
+\section{L\'evy flights}
+
+L\'evy flights \cite{wvsl} are an interpretation of the random walk process where the translation always happens in a fixed amount of time (which could also be $0$), making the velocity highly variable. The total time of a L\'evy flight is thus proportional to the number of steps in the flight, $t \propto n$.
+
+Our methodology will be to simulate $N$ random walks with $n$ steps each for each given $\mu$. It should be noted that values of $\mu$ smaller than $1$ are nonsensical since for those the Pareto distribution becomes non-normalizable. For each random walk we record the final distance  from the origin $r_i \ (i = 0, 1, ...,N-1)$ and use that to get the spread. Theory predicts that the average value of this final distance will be $0$, while its second mode, the variance $\sigma^2$, will be nonzero and changing with time. 
+
+To measure this spread we use the more robust estimator of the variance, the median absolute deviation's square $\MAD^2$ \cite{mad}, which is defined as
+%
+\begin{align}
+\MAD \left( \{x\}_{i=1}^{N} \right) = \mathrm{median}_{i=1}^{N} \abs{x_i - \mathrm{median}_{j=1}^{N}(x_j)}.
+\end{align}
+%
+For most probability distribution we have that
+%
+\begin{align}
+\MAD^2 \left( \{x\}_{i=1}^{N} \right) \propto \sigma^2 \left( \{x\}_{i=1}^{N} \right),
+\end{align}
+%
+which means that for our purposes of finding the power dependence we are satisfied by just working with the $\MAD^2$ instead of the variance $\sigma^2$.
+
+We then make a linear fit on the plot of $\ln(\MAD^2)$ vs. $\ln(t)$, the slope of which gives us the desired coefficient $\gamma$. Repeating this for multiple $\mu$ we generate a set of points that should, within error, lie on the theoretically predicted curve $\gamma(\mu)$.
+
+\begin{figure}[h]
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.35]{flights_gamma_mu.png}
+\caption{Theoretical and simulated results for $\gamma$ as a function of $\mu$. Simulated points are shown in black, while the theoretical curve is shown in blue.}
+\label{fig:flights_gamma_mu}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.35]{flight_pic.png}
+\caption{An example of a L\'evy flight with $\mu = 2.0 $ and $n = 1000$. The beginning and end point are shown in red.}
+\label{fig:flight_pic}
+\end{figure}
+
+To estimate of the error because of our sampling of the $\MAD$ we can use the fact \cite{mad_err} that for a continuous random variable $x$ with population median $m$, continuous probability density $f(x)$ and a large odd sample size $n$, the sample median is approximately normally distributed with median $m$ and median absolute deviation approximately $\frac{\Phi^{-1}(3/4)}{2 \sqrt{n} f(m)}$, where $\Phi^{-1}$ is the inverse of the CDF of the standard normal distribution. This gives us for our error
+%
+\begin{align}
+\Delta(\MAD^2) &= 2 \MAD \, \Delta(\MAD) \approx \frac{0.674}{\sqrt{N} f(0)} \MAD \notag\\ &\xRightarrow{\mathrm{N. D.}} \frac{0.181}{\sqrt{N}},
+\end{align} 
+%
+where in the last line we assumed a normal distribution for our $x$ with a population median $m \approx 0$. Since $\gamma$ is determined from the fit, its error also is. Thus, it depends on the previously estimated error and the number of $n$ values which we use, again, as one over the square root of that number. 
+
+\begin{figure}[h]
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.32]{flights_fit.png}
+\caption{An example of a fit to get the slope $\gamma$. The confidence interval shown is one standard deviation in the fit parameters.}
+\label{fig:flights_fit}
+\end{figure}
+
+In this way we generate figure \ref{fig:flights_gamma_mu}; it shows $\gamma$ as a function of $\mu$, where we have used the parameter $N = 100$ and traversed the interval $[10^3,10^4]$ in steps of $100$ for $n$. Theoretically, we predict that the function should look like
+%
+\begin{align}
+\gamma(\mu)= \begin{cases} 
+      \frac{2}{\mu - 1} & 1 \leq \mu \leq 3 \\
+      1 & \mu \geq 3 \\
+   \end{cases}
+\end{align}
+%
+and we see that we get a pretty good match with the simulation. There is, however, a problem with the error being too large for $\mu$ near $1$. This arises because of the fact that the closer $\mu$ is to $1$, the larger the tail of the distribution, meaning that it's not uncommon to see large steps even of sizes around $10^{20}$.
+
+An example of a L\'evy flight is shown in figure \ref{fig:flight_pic}, although there doesn't really exist a typical example that covers all $\mu$ and all $n$.
+
+A typical example of a fit from which we get the slope $\gamma$ is shown in figure \ref{fig:flights_fit}.
+
+
+\section{L\'evy walks}
+
+\begin{figure}[H]
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.32]{walks_gamma_mu.png}
+\caption{Theoretical and simulated results for $\gamma$ as a function of $\mu$. Simulated points are shown in black, while the theoretical curve is shown in blue.}
+\label{fig:walks_gamma_mu}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.38]{walk_pic.png}
+\caption{An example of a L\'evy walk with $\mu = 2.0 $ and $t_f \approx 1007$. The beginning and end point are shown in red.}
+\label{fig:walk_pic}
+\end{figure}
+
+Another possible interpretation of the random walk process is as a constant velocity process. This means that the time $t$ for the process is not proportional to the number of step $n$ but rather to the total length of the path $s$.
+
+The simulation works similarly to the flights case, with the only difference being the stopping condition of walk. In the case of L\'evy walks we stop once the time $t$ reaches our desired final time. There is a subtlety with this stopping condition in that it may happen that we run out of time in the middle of a step; in this case, we cut the step proportionally to fill out the time completely.
+
+The same arguments for error estimates that we used for the L\'evy flights are also valid in this case and we will, in fact, use them again.
+
+Similarly to before, figure \ref{fig:walks_gamma_mu} shows the plot of $\gamma$ vs. $\mu$, now for the case of our flights. The theoretically predicted shape of the curve is
+%
+\begin{align}
+\gamma(\mu)= \begin{cases} 
+      2 & 1 \leq \mu \leq 2 \\
+      4 - \mu & 2 \leq \mu \leq 3 \\
+      1 & \mu \geq 3, \\
+   \end{cases}
+\end{align}
+%
+which we see is somewhat of a match with our simulated results, although it's not a convincing fit, and is much worse than the result for the flights from before. For the simulated results $N = 200$ was used and times where gotten from the interval $[10^3, 10^4]$ in steps of $100$.
+
+\begin{figure}[h]
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.33]{walks_fit.png}
+\caption{An example of a fit to get the slope $\gamma$. The confidence interval shown is one standard deviation in the fit parameters.}
+\label{fig:walks_fit}
+\end{figure}
+
+We again see the large errors when $\mu$ is close to $1$, for the same reason as before. One way that we could explain the non-matching would be if our error estimates underestimated the error we have.
+
+An example of a L\'evy walk is shown in figure \ref{fig:walk_pic}. We can't really see a difference between this and the L\'evy flight because in one case we are setting the number of steps, while in the other we are setting the duration. If we were to plot a fixed number of steps for the L\'evy walk we would see that it is a bit different from the flight \cite{wvsl}.
+
+As in the flights case, a typical example of a fit is shown in figure \ref{fig:walks_fit}.
+
+\printbibliography
+
+\end{document}

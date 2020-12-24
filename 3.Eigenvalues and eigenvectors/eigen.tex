@@ -1,0 +1,235 @@
+\documentclass[10pt,a4paper,twocolumn]{article}
+%\documentclass[12pt,a4paper]{article}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{commath}
+\usepackage{titlesec}
+\usepackage{caption}
+\usepackage{indentfirst}
+\usepackage{hyperref}
+\usepackage{enumitem}[leftmargin=0pt]
+\usepackage{multicol}
+\usepackage{yfonts}
+\usepackage{verbatim}
+\usepackage{bm}
+\usepackage{float}
+\usepackage{braket}
+\usepackage[stable]{footmisc}
+
+\usepackage[backend=biber]{biblatex}
+\addbibresource{eigen.bib}
+
+\usepackage{graphicx}
+
+\begin{document}
+
+\title{Eigenvalues and Eigenvectors}
+\author{Aleksandar Ivanov}
+\date{\today}
+\maketitle
+
+
+\section{Problem statement}
+
+Using diagonalization, find some of the eigenvalues and eigenvectors of the perturbed Hamiltonian $H$, defined as
+\begin{align}
+H = H_0 + \lambda q^4,& &H_0 = \frac{1}{2} \left(p^2 + q^2 \right)
+\end{align}
+%
+in the basis $\ket{n^{(0)}}$ of the unperturbed Hamiltonian $H_0$'s eigenvectors, for the values of $\lambda \in [0,1]$. Program at least on diagonalization method by hand and find the dependence of the results on the matrix size $N \times N$. What's the difference in using $\hat{q}^4$, $\hat{q^2}^2$ and $\hat{q^4}$?
+
+
+\section{Implementation of the Algorithms}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{eval_times.png}
+\caption{Evaluation times as a function of linear matrix size $N$ for the different implemented algorithms, tested on random dense symmetric matrices.}
+\label{fig:eval_times}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{eval_prec.png}
+\caption{Error as a function of linear matrix size $N$ for the different implemented algorithms, tested on random dense symmetric matrices.}
+\label{fig:eval_prec}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{eval_times_sparse.png}
+\caption{Evaluation times as a function of linear matrix size $N$ for the different implemented algorithms, tested on random sparse symmetric matrices with density $\rho=0.01$.}
+\label{fig:eval_times_sparse}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{eval_prec_sparse.png}
+\caption{Error as a function of linear matrix size $N$ for the different implemented algorithms, tested on random sparse symmetric matrices with density $\rho=0.01$.}
+\label{fig:eval_prec_sparse}
+\end{figure}
+
+The algorithms implemented by hand were Jacobi iteration, Householder reflections for QR decomposition and power iteration. Because we are solving the eigenvalue problem for symmetric matrices, the Householder algorithm for QR decomposition already returns the diagonalized matrix in $R$ and eigenvectors in $Q$, so further work is not required.
+
+Testing the speed of the implementations versus the built-in algorithm \texttt{numpy.linalg.eigh} \cite{eigh} we get figure \ref{fig:eval_times}. In it we see that as expected the optimized, built-in function \texttt{numpy.linalg.eigh} performed the best, and the power iteration, being the least optimized of the bunch, performed the worst. We also see that Jacobi performed worse than Householder, which agrees with theory. \cite{zagar}
+
+A comparison of the errors of the implementations is given in figure \ref{fig:eval_prec}. The estimate of the error used was the maximal deviation from the actual value of the matrix after multiplying the decomposed element to get the matrix. We see that the built-in \texttt{numpy.linalg.eigh} function and the Householder algorithm have comparable errors while the Jacobi iteration process has a somewhat larger, but still quite negligible, error.
+
+Since in our case the matrices are not that dense, a further test for the evaluation times and precision on sparse matrices with density $\rho = 0.01$ was done and the results of that are shown in figures \ref{fig:eval_times_sparse} and \ref{fig:eval_prec_sparse}. We see similar results as in the case of dense matrices.
+
+
+\section{On $\widehat{q}^4$ vs. $\widehat{q^2}^2$ vs. $\widehat{q^4}$ \footnote{In this section, hats are used on operators to differentiate the operators that we are implementing, which are under the hat, from the full operator that we use.}}\label{sec:q_methods}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{q_times.png}
+\caption{Evaluation time for the creation of the matrix $q^4$ in the three aforementioned ways, as a function of linear matrix size $N$.}
+\label{fig:q_times}
+\end{figure}
+
+When it comes to the question of which way to implement the perturbation we have three obvious options. One is to implement the creation of the matrix $\widehat{q}$ and multiply that four times to get $\widehat{q}^4$, another one is to implement the matrix $\widehat{q^2}$ and square that to get $\widehat{q^2}^2$ and yet another is to just implement the matrix $\widehat{q^4}$ from the beginning. We do this using one of the three formulae derived from the actions of the creation and annihilation operators \cite{djg}
+%
+\begin{align}
+\braket{i|q|j} &= \frac{1}{2} \sqrt{i+j+1}\, \delta_{|i-j|,1},\\
+\braket{i|q^2|j} &= \frac{1}{2} \left[ \sqrt{j(j-1)} \, \delta_{i,j-2} + (2j+1) \, \delta_{i,j} \right.\notag\\
+&\quad\left. + \sqrt{(j+1)(j+2)} \, \delta_{i,j+2} \right],\\
+\braket{i|q^4|j} &= \sqrt{\frac{2^{i-8} i!}{2^j j!}} \left[ \delta_{i,j+4} + 4(2j+3)\, \delta_{i,j+2}\right.\notag\\
+&\quad\left. + 12(2j^2+2j+1)\, \delta_{i,j}\right.\notag\\
+&\quad\left. + 16j(2j^2-3j+1)\,\delta_{i,j-2}\right.\notag\\
+&\quad\left. + 16j(j^3-6j^2+11j-6)\, \delta_{i,j+4} \right].
+\end{align}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{q_max_err.png}
+\caption{Maximal element error for the aforementioned ways of creating $q^4$ as a function of the linear matrix size $N$.}
+\label{fig:q_max_err}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{q_avg_err.png}
+\caption{Average element error excluding the last two rows and columns for the aforementioned ways of creating $q^4$ as a function of the linear matrix size $N$.}
+\label{fig:q_avg_err}
+\end{figure}
+
+A reasonable assumption would be that matrix multiplication, being an expensive operation, would make the $\widehat{q^4}$ method the most efficient.
+
+The test of this is shown in figure \ref{fig:q_times} and surprisingly we see that the $\widehat{q^4}$ method only becomes better after $N \approx 500$ and that for matrices smaller than $N \approx 200$ the $\widehat{q}^4$ method is comparable with or even better than the $\widehat{q^2}^2$ method.
+
+Figures \ref{fig:q_max_err} and \ref{fig:q_avg_err} try to show the error we get by using the methods above compared to the definitionally correct $\widehat{q^4}$. At first figure \ref{fig:q_max_err}, plotting the maximal element deviation from $\widehat{q^4}$, is a bit worrying since the error grows to extremely large values, but \ref{fig:q_avg_err} provides consolation; it plots the average element deviation from $\widehat{q^4}$, excluding the last two rows and columns. We see that the errors of the $\widehat{q}^4$ and $\widehat{q^2}^2$ are now comparable and hover around $10^{-14}$ for all tested cases. These two graphs show us that by multiplying the matrices we are propagating the cut-off error up the matrix, but we are saved by the fact that the matrices are almost diagonal, which limits the propagation per multiplication.
+
+Since all three methods are comparable, we will choose to use the $\widehat{q^4}$ method in the rest of this work.
+
+
+\section{Eigenpairs of $H$}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{eig_N.png}
+\caption{The first $10$ eigenvalues for $\lambda=0.1$ as a function of the linear matrix size $N$.}
+\label{fig:eig_N}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{vec_N.png}
+\caption{The first $10$ $\braket{n^{(0)}|n}$ for $\lambda=0.1$ as a function of the linear matrix size $N$.}
+\label{fig:vec_N}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{eig_lambda.png}
+\caption{The first $10$ eigenvalues $E_n$ minus their unperturbed counterparts $E_n^{(0)}=n+\frac{1}{2}$ for $N=100$ as a function of the perturbation parameter $\lambda$.}
+\label{fig:eig_lambda}
+\end{figure}
+
+Using the previous algorithms we can diagonalize our matrix $H$ to get its eigenvalues and eigenvectors. We will do this diagonalization using the built-in function \texttt{numpy.linalg.eigh} because it did turn out to be the fastest of the tested algorithms.
+
+First we want to test how matrix size $N$ influences the results of the diagonalization, i.e., how fast the eigenpairs converge to their actual values as $N$ becomes larger and larger.
+
+Figure \ref{fig:eig_N} shows us the situation for the eigenvalues. In it we see that higher eigenvalues are more affected than lower ones. This is in agreement with the error propagation argument from section \ref{sec:q_methods}. The lesson is then, that we need to use much bigger matrices than the number of eigenvalues we want to get correctly.
+
+The eigenvector calculation is linked to the eigenvalue one so we expect a similar behavior. We expect the last few components to be the biggest problem, and that is exactly what figure \ref{fig:vec_N} shows; when plotting the largest component of the first $10$ eigenvectors, vectors with larger $n$ need bigger matrices to converge to their actual values.
+
+Using a matrix of size $100 \times 100$ we compute the first $10$ eigenvalues' and eigenvectors' dependence on the perturbation parameter $\lambda$. The eigenvalues are shown in figure \ref{fig:eig_lambda}, where we see that they are growing functions of lambda, which is to be expected since $q^4$ is a positive definite perturbation. We also see that at $\lambda=0$ we get agreement with the unperturbed eigenvalues $E_n^{(0)}$.
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}\includegraphics[scale=0.5]{vec0_lambda.png}
+\caption{The first eigenvector $\ket{0}$'s components in the original basis $\{\ket{n}\}_{i=0}^{\infty}$ for $N=100$ as functions of the perturbation parameter $\lambda$.}
+\label{fig:vec0_lambda}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{vec3_lambda.png}
+\caption{The fourth eigenvector $\ket{3}$'s components in the original basis $\{\ket{n}\}_{i=0}^{\infty}$ for $N=100$ as functions of the perturbation parameter $\lambda$.}
+\label{fig:vec3_lambda}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{vec4_lambda.png}
+\caption{The fifth eigenvector $\ket{4}$'s components in the original basis $\{\ket{n^{(0)}}\}_{i=0}^{\infty}$ for $N=100$ as functions of the perturbation parameter $\lambda$.}
+\label{fig:vec4_lambda}
+\end{figure}
+
+For the eigenvectors, we can plot their components in the original basis as functions of lambda. Figures \ref{fig:vec0_lambda}, \ref{fig:vec3_lambda} and \ref{fig:vec4_lambda} do this for $\ket{0}$, $\ket{3}$ and $\ket{4}$, respectively. The first thing we notice is that there is no mixing between even and odd states, which makes sense since the perturbation is an even addition to the potential and we are continuously performing the perturbation from $0$ to $\lambda$. We also see that the biggest increase goes into components that are close in $n$ to the state and above it, as long as $\lambda$ is on the small side. So, for example, the biggest component of $\ket{4}$ that isn't in the direction of $\ket{4^{(0)}}$ is in the direction $\ket{6^{(0)}}$. Another thing to notice is that the bigger $n$ is, the faster $\braket{n^{(0)}|n}$ is falling.
+
+
+\section{Additional problem statement}
+
+Find some of the low-lying eigenvalues and eigenvectors for the double minimum Hamiltonian
+%
+\begin{align}
+H' = \frac{p^2}{2} - 2q^2 + \frac{q^4}{2}.
+\end{align}
+
+
+\section{Eigenpairs of H'}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{extra_eig.png}
+\caption{The potential and first $18$ eigenvalues of the Hamiltonian $H'$ for $N=100$.}
+\label{fig:extra_eig}
+\end{figure}
+
+\begin{figure}
+\centering
+\captionsetup{justification=centering}
+\includegraphics[scale=0.5]{extra_vec.png}
+\caption{The potential and first $3$ eigenstates of the Hamiltonian $H'$ for $N=100$.}
+\label{fig:extra_vec}
+\end{figure}
+
+To begin, we rewrite the Hamiltonian $H'$ as a perturbation of the harmonic oscillator Hamiltonian $H_0$
+%
+\begin{align}
+H' = \frac{p^2}{2} - 2q^2 + \frac{q^4}{2} = H_0 - \frac{5}{2}q^2 + \frac{q^4}{2},
+\end{align}
+%
+we then plug this into our algorithm for $N = 100$ and generate figures \ref{fig:extra_eig} and \ref{fig:extra_vec}. The first few eigenstates are approximately, as expected, just sums of two harmonic oscillator states around each minimum of the potential. Because the perturbation is again even, we see the states keeping their parity distinction.
+
+\printbibliography
+
+\end{document}
