@@ -1,0 +1,239 @@
+\documentclass[10pt,a4paper,twocolumn]{article}
+%\documentclass[12pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{commath}
+\usepackage{titlesec}
+\usepackage{caption}
+\usepackage{indentfirst}
+\usepackage{hyperref}
+\usepackage{enumitem}[leftmargin=0pt]
+\usepackage{cleveref}
+\usepackage{yfonts}
+\usepackage{verbatim}
+\usepackage{bm}
+\usepackage{float}
+\usepackage{braket}
+\usepackage[stable]{footmisc}
+
+\usepackage[backend=biber]{biblatex}
+\addbibresource{1de.bib}
+
+\usepackage{graphicx}
+\graphicspath{{images/}}
+
+\newcommand{\si}[2]{$#1 \, \mathrm{#2}$}
+
+\begin{document}
+
+\title{Numerical Solutions of First Order Differential Equations}
+\author{Aleksandar Ivanov}
+\date{\today}
+\maketitle
+
+\section{Problem Statement}
+
+Solve the first order differential equation
+%
+\begin{align}
+    \frac{\mathrm{d}T}{\mathrm{d}t} = - k (T - T^*),
+\end{align}
+%
+which models simple cooling to an environment with temperature $T^*$, using a variety of numerical methods for solving first order differential equations (Euler method, Runge-Kutta method, Adams-Bashforth-Moulton method\dots). How small a step $h$ is necessary? Choose a method (and step size) for calculating the solution for different values of $k$.
+
+
+\section{Equation Setup}
+
+As always, when dealing with physical problems using numerical methods, it's useful to nondimensionalize the problem. This helps us in three major ways. One is that we don't have to deal with units, which we don't store numerically, another reason is that our equation is simplified to its most essential dynamical components, and finally we generically have better numerical stability since our quantities stay closer to $\mathcal{O}(1)$ than they would otherwise.
+
+For our equation we introduce
+%
+\begin{align}
+    x = \frac{T - T^*}{T^*},& &\tau = k t,
+\end{align}
+%
+which cast out equation into the simple form
+%
+\begin{align}
+    \dot{x} = - x,
+\end{align}
+%
+where we have used a dot to denote differentiation with respect to $\tau$.
+
+Our equation obviously has the exact solution
+\begin{align}
+    x(t) = x_0 \exp(- \tau),
+\end{align}
+%
+or in terms of $T$ and $t$,
+\begin{align}
+    T(t) = T^* + (T_0 - T^*) \exp(-k t).
+\end{align}
+
+We will be comparing to this solution whenever we need to check the accuracy of our numerically calculated solutions.
+
+
+\section{Methods}
+
+The numerical methods we will be using will be:
+%
+\begin{enumerate}
+    \item The Euler method,
+    \item The Heun (modified Euler) method,
+    \item The Runge-Kutta method of order 4,
+    \item The Runge-Kutta-Fehlberg 4(5) method, and
+    \item The Adams-Bashforth-Moulton method of order 4.
+\end{enumerate}
+
+All of these are explicit methods. One and three are all examples of Runge-Kutta type methods of different orders, two and five are examples of methods of the type predictor-corrector while 4 is an example of a method with self-correcting step size.
+
+The predictor-corrector method initially needs the derivative at the first four points to get started, and we provide this by using the 4th order Runge-Kutta method.
+
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{err_N.png}
+    \caption{Error estimate of the different constant-step methods as a function of the step size $h$, keeping the number of points $N$ constant.}
+    \label{fig:err_N}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{err_T.png}
+    \caption{Error estimate of the different constant-step methods as a function of the step size $h$, keeping the interval size $T$ constant.}
+    \label{fig:err_T}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{err_RKF45.png}
+    \caption{Error of the Runge-Kutta-Fehlberg 4(5) variable-step method as a function of time $\tau$ for the different stability regimes. The minimum step used was $h_{\mathrm{min}} = 10^{-6}$}
+    \label{fig:err_RKF45}
+\end{figure}
+
+\section{Accuracy tests}
+
+To test the accuracy for the constant step size methods, we numerically calculate the solution of our equation and check its average deviation from the exact solution, for a variety of step sizes. We can do this in two ways; One is two fix the number of points and change the interval size while the other is to fix the interval size and change the number of points.
+
+These two tests are shown in \cref{fig:err_N,fig:err_T}, respectively, using the initial condition $x_0 = 1$. They show an overall similar behavior for all tested methods. As expected, the simple Euler method is the least accurate, followed by the second order Heun method and with Runge-Kutta of 4th order being the most accurate of the bunch \cite{errors}. The predictor-corrector method of 4th order was somewhat less accurate than RK4, but either way its main selling point is minimization of function calls, so it's done good considering.
+
+We can also already see stability considerations sneaking in as extremely fast growth of our error, especially well delineated in the constant $N$ \cref{fig:err_N}.
+
+On the lower end of step sizes, on the other hand, we are, as always, limited by floats' double precision, but this is hard to pin only on the algorithms, since all of our comparisons and even the `exact' solution also suffer from the same error. 
+
+The error is, of course, also dependent on the initial condition, since that is the value that sets the scale of our function. Tests with different initial conditions in the range of a couple of orders of magnitude around $\mathcal{O}(1)$ gave exactly the same behavior as the one shown in \cref{fig:err_N,fig:err_T}, with the only difference being that the curves get shifted upwards vertically, since we're plotting an absolute error in a logarithmic scale.
+
+For the variable-step method, we have \cref{fig:err_RKF45}; it shows the error from the exact solution for a tolerance of $\epsilon = 10^{-8}$ and a time interval $T = 150$ as a function of the time $\tau$. We have three regions depending on stability, since RK4 becomes unstable for $h > 2.79$ and RK5 becomes unstable for $h > 3.22$ \cite{rk_stab}. We see that when the algorithm is stable it has no problem keeping under the tolerance. This is generically the case as long as the tolerance doesn't get too close to the floating point double precision. Surprisingly though, even in the cases when it should naively be unstable it still manages to keep its error near the tolerance.
+
+When scaling the solution back to get the original, our error in $T$ will of course be $\Delta T = T^* \Delta x$.
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{times_T_loglog.png}
+    \caption{Evaluation time of the different constant-step methods as a function of the number of points $N$, keeping the interval size $T$ constant.}
+    \label{fig:times_T}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{times_RKF45_eps.png}
+    \caption{Evaluation time for the Runge-Kutta-Fehlberg 4(5) method as a function of the tolerance $\epsilon$, for the different stability regimes.}
+    \label{fig:times_RKF45}
+\end{figure}
+
+\section{Speed Tests}
+
+The speed of evaluation for the constant-step methods depends mainly on the number of points for which we do the calculation; it's basically independent of interval size. \Cref{fig:times_T} shows this dependence. We see that the evaluation time scales similarly for all the methods, which is expected since at their core they all have the same array manipulations, the only difference being in the amount that they use. This gives them all an $\mathcal{O}(N)$ time complexity, as we can see from the figure. We also see that the Euler method, being the one with the least amount of calculations, is the fastest. The predictor-corrector 4th order method is also almost always faster than the Runge-Kutta 4th order method.
+
+For the variable-step method it's sensible to see how the evaluation time depends on the tolerance $\epsilon$. Exactly this is shown in \cref{fig:times_RKF45}, which as expected says that the evaluation time is longer the smaller the tolerance is, and it's also longer for smaller maximal steps. We don't see any major change in evaluation time between the three stability regimes.
+
+
+\section{Stability}
+
+As we already saw in \cref{fig:err_N}, our algorithm are not stable for arbitrary step size. Here by stability we mean that we don't get arbitrarily large deviations between two solutions with initial conditions that are close to each other. Equivalently, it means that we don't get large deviations from the exact solution.
+
+For the Euler and Runge-Kutta methods we can calculate the stable intervals theoretically, and we get $h \in (0,2]$ for the Euler method, $h \in (0, \approx 2.79]$ for RK4 method, and $h \in (0, \approx 3.22]$ for the RK5 method \cite{rk_stab}. This is exactly confirmed by \cref{fig:err_N} for the RK4 and Euler cases. \Cref{fig:err_RKF45} agrees with the cutoff for RK5 being $3.22$ since it displays different behavior above that, but it isn't an outright confirmation. It makes sense that the Heun method's stability cutoff is the same as the Euler method's because it uses the Euler method as its predictor.
+
+The stability range of the Adams-Bashforth-Moulton predictor-corrector 4th order method is harder to calculate, but the result of \cref{fig:err_N} agree with the theoretical value in \cite{10.2307/2004101}.
+
+
+\section{Discussion}
+
+In trying to solve our cooling model, we have observed some of the benefits and drawbacks of particular algorithms for numerically solving differential equations. Of the methods we've covered, the Euler method is characterized by its simplicity, the 4th order Runge-Kutta by its stability and the Runge-Kutta-Fehlberg 4(5) by its accuracy.
+
+We have also used the mathematical trick of nondimensionalization to compress our parameter space and bring the equations into a form with only their basic dynamical components. Had we not done this, the only difference would have been in the scale of the solution and a change in what parameter characterizes stability, namely the dimensionless $k h_t$, where $h_t$ is the step size in the same units as $t$.
+
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{add_sol_big.png}
+    \caption{Solution using the constant-step methods and a relatively large step size $h=0.4$ of \cref{eq:add}}
+    \label{fig:add_sol_big}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{add_sol_small.png}
+    \caption{Solution using the constant-step methods and a relatively small step size $h=0.1$ of \cref{eq:add}}
+    \label{fig:add_sol_small}
+\end{figure}
+
+\section{Additional Problem Statement}
+
+The temperature can also change because of the Sun's shining, which we model as
+%
+\begin{align}
+    \frac{\mathrm{d}T}{\mathrm{d}t} = - k (T - T^*) + A \sin (\omega t + \delta),
+\end{align}
+%
+where $k=$\si{0.1}{/h}, $\omega = 2 \pi / (\text{\si{24}{h}})$ and $\delta \approx 2.618$ is a phase offset. Find the solution to this equation. What kind of method would you use if you wanted to calculate the maximal temperatures and their occurrence times particularly well?
+
+
+\section{Additional Setup}
+
+We proceed again with nondimensionalization. This time we need to define the variables
+%
+\begin{align}
+    x = (T - T^*) \frac{k}{A},& &\tau = k t,& &\tilde{\omega} = \frac{\omega}{k},
+\end{align}
+which make out equation
+%
+\begin{align}\label{eq:add}
+    \dot{x} = - x + \sin(\tilde{\omega} t + \delta).
+\end{align}
+%
+Here we have $\tilde{\omega} \approx 2.618$ by using the given data. We see that we have no free parameters in our equation, since we have fixed $\tilde{\omega}$ and $\delta$; The scale of the problem is again determined only by the initial condition, and only for the decaying solution at that.
+
+We can calculate the solution theoretically too, but the only part that will be important to us is the amplitude of the particular solution. This is because we want to see which method is the best for finding the maxima correctly. The particular solution's amplitude is given by
+%
+\begin{align}
+    A' = \frac{1}{\sqrt{1+\tilde{\omega}^2}}.
+\end{align}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{add_sol_RKF45.png}
+    \caption{Solution  of \cref{eq:add} using the variable-step method with step size $h \in [10^{-3}, 10^{0}]$ and tolerance $\epsilon = 10^{-3}$.}
+    \label{fig:add_sol_small}
+\end{figure}
+
+Plotting the solutions of the different methods on the interval $\tau \in [0,100]$ we get \cref{fig:add_sol_big,fig:add_sol_small}. The former shows the solutions for a larger step size, while the latter shows them for a smaller step size. We see that the best methods to use are, predictably, the Adams-Bashforth-Moulton 4th order and the Runge-Kutta 4th order methods, since they don't need as large a step size to see the oscillations in the solution.
+
+The variable-step method RKF4(5) also gives a very good answer in terms of accuracy, but it is much slower than the previous two because it needs to constantly change its step size, which means that it throws out a lot of the calculations it does.
+
+\printbibliography
+
+\end{document}
