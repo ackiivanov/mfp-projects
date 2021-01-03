@@ -1,0 +1,248 @@
+\documentclass[10pt,a4paper,twocolumn]{article}
+%\documentclass[12pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{commath}
+\usepackage{titlesec}
+\usepackage{caption}
+\usepackage{indentfirst}
+\usepackage{hyperref}
+\usepackage{enumitem}[leftmargin=0pt]
+\usepackage{cleveref}
+\usepackage{yfonts}
+\usepackage{verbatim}
+\usepackage{bm}
+\usepackage{float}
+\usepackage{braket}
+\usepackage[stable]{footmisc}
+
+\usepackage[backend=biber]{biblatex}
+\addbibresource{gal.bib}
+
+\usepackage{graphicx}
+\graphicspath{{images/}}
+
+\renewcommand{\vec}[1]{\bm{\mathrm{#1}}}
+\newcommand{\si}[2]{$#1 \, \mathrm{#2}$}
+\newcommand{\diff}{\mathop{}\!\mathrm{d}}
+
+\begin{document}
+
+\title{Galerkin Methods for PDEs}
+\author{Aleksandar Ivanov}
+\date{\today}
+\maketitle
+
+\section{Problem Statement}
+
+Use the Galerkin method to find the coefficient
+%
+\begin{align}
+    C = \frac{32}{\pi} \iint_{\mathcal{D}} u(\xi, \phi) \xi \diff \xi \diff \phi
+\end{align}
+%
+in the calculation of the flux
+%
+\begin{align}
+    \Phi = C \frac{p S^2}{8 \pi \eta}
+\end{align}
+%
+for a semicircular pipe, where $\xi = r/R$ is the dimensionless radius and $u = v \eta / p R^2$ and the system is described by the Navier-Stokes equation in its uniform, incompressible, laminar flow driven by a constant pressure difference form
+%
+\begin{align}\label{eq:nsdim}
+    \nabla^2 v = - \frac{p}{\eta}.
+\end{align}
+
+How is the accuracy of the method affected by the number of basis functions used.
+
+\section{Setup}
+
+We will be solving the Navier-Stokes equation (\cref{eq:nsdim}) in its dimensionless form
+%
+\begin{align}\label{eq:ns}
+    \nabla^2 u(\xi, \phi) = -1,
+\end{align}
+%
+on the domain
+%
+\begin{align}
+    \mathcal{D} = \left\lbrace (\xi \cos \phi, \xi \sin \phi) \in \mathbb{R}^2 \mid \xi \in [0,1] \phi \in [0, \pi] \right\rbrace.
+\end{align}
+
+The boundary conditions are obviously Dirichlet BCs
+%
+\begin{align}
+    &u(\partial \mathcal{D})=0& &\Leftrightarrow& &u(1,\phi) = u(\xi, 0) = u(\xi, \pi) = 0.&
+\end{align}
+
+The analytical solution of \cref{eq:ns} is given as an expansion over the basis of eigenfunctions of the Laplacian in this particular geometrical setup
+%
+\begin{align}\label{eq:analytical}
+    u(\xi, \phi) = \sum_{m = 0}^{\infty} \sum_{n = 1}^{\infty} c_{(m,n)} J_{2 m + 1} \left(\zeta_{2 m + 1, n} \xi \right)\notag\\
+    \times \sin \left( (2 m + 1) \phi \right),
+\end{align}
+%
+where $\zeta_{2 m + 1, n}$ is the $n$-th zero of the $(2 m + 1)$-st Bessel $J$ function and $c_{(m,n)}$ are the expansion coefficient of $-1$ in the eigenbasis
+%
+\begin{align}
+    c_{(m,n)} = (-1) \frac{\int_{0}^{1} J_{2 m + 1}(\zeta_{2 m + 1, n} \xi) \xi \diff \xi }{\norm{J_{2 m + 1}(\zeta_{2 m + 1, n} \xi)}} \notag\\
+    \times \frac{\int_{0}^{\pi} \sin((2 m + 1) \phi) \diff \phi}{\norm{\sin((2 m + 1) \phi)}}
+\end{align}
+
+The idea of the Galerkin method \cite{ucilnica} is to choose a finite subset of a basis set of vectors of the vector space of functions which satisfy the boundary conditions, i.e. a guess
+%
+\begin{align}\label{eq:ansatz}
+    \tilde{u}(\xi, \phi) = \sum_{k=1}^{N} c_k \Psi_k (\xi, \phi),
+\end{align}
+%
+and with them minimize the residual
+%
+\begin{align}\label{eq:resid}
+    \varepsilon(\xi, \phi) = \nabla^2 \tilde{u}(\xi, \phi) + 1,
+\end{align}
+%
+by making it lie in the perpendicular subspace
+%
+\begin{align}\label{eq:cond}
+    \varepsilon \in \mathrm{span}\left\lbrace \Psi_1, \dots, \Psi_N \right\rbrace_{\perp},
+\end{align}
+%
+where perpendicularity is defined under the inner product
+%
+\begin{align}
+    (\Psi_i, \Psi_j) = \int_{\mathcal{D}} \Psi_i \Psi_j \diff S.
+\end{align}
+
+So by choosing a proper set of functions we can get an approximation for the actual solution $u$. 
+
+It should be noted that the eigenfunctions can be indexed by a multi-index $k = (k_1, \dots, k_f)$ too. This wouldn't change anything except to replace the sum in \cref{eq:ansatz} with a multi-sum. This is important since our problem is two-dimensional and is thus indexed by a $2$-index $(m, n)$ as in \cref{eq:analytical}.
+
+To satisfy the condition from \cref{eq:cond} we take the inner product of \cref{eq:resid} with some trial function $\Psi_i$
+%
+\begin{align}
+    0 &= \sum_{k=0}^{N} c_k (\nabla^2 \Psi_k, \Psi_i) + (1, \Psi_i) \notag\\ &= -\sum_{k=0}^{N} c_k (\nabla \Psi_k, \nabla \Psi_i) + (1, \Psi_i),
+\end{align}
+%
+where the last equality holds because of integration by parts and the Dirichlet BCs, and the product in the inner product is interpreted as the scalar product of normal two-dimensional $\mathbb{R}^2$ vectors.
+
+This we can define the symmetric matrix and vector
+%
+\begin{align}
+    &A_{ij} = - (\nabla \Psi_i, \nabla \Psi_j),& &b = - (1, \Psi_i)&
+\end{align}
+%
+and solve the system of linear equations
+%
+\begin{align}
+    A \vec{c} = \vec{b},
+\end{align}
+%
+where $\vec{c}$ is the vector of the coefficients $c_k$.
+
+Computing our wanted coefficient $C$ through the matrix form we get
+%
+\begin{align}
+    C = -\frac{32}{\pi} \vec{b} \cdot \vec{c}
+\end{align}
+
+We will try out the method with the following choice of trial vectors, inspired by the analytical solution but still a simplification of it:
+%
+\begin{align}
+    \Psi_{(m,n)}(\xi, \phi) = \xi^{2 m + 1} (1 - \xi)^{n} \sin((2 m + 1) \phi),
+\end{align}
+%
+where $m \in [0, M - 1]$ and $n \in [1, N]$. These have the property that
+%
+\begin{align}
+    (\Psi_{(m', n')}, \Psi_{(m, n)}) = \delta_{m' m} \frac{\pi}{2} B(n + n' + 1, 4 m + 4),
+\end{align}
+%
+where $B$ is the beta function. This, in turn, gives the matrix formulation as
+%
+\begin{align}
+    A_{(m', n')(m, n)} = -\delta_{m' m} \frac{\pi}{2} \frac{n n' (4 m + 3)}{n + n' + 4 m + 2} \notag\\ \times B(n + n' - 1, 4 m + 3) \\
+    b_{(m, n)} = - \frac{2}{2 m + 1} B(n + 1, 2 m + 3).
+\end{align}
+%
+Since the angular eigenfunctions are orthogonal, the stacked system decomposes into block diagonal form, meaning that we can solve it separately for every m and do not have to deal with a huge $M N \times M N$ matrix.
+
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{times.png}
+    \caption{Evaluation times for out implementation holding either $M = 50$ or $N = 50$ constant.}
+    \label{fig:times}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{times_log.png}
+    \caption{Evaluation times for out implementation holding either $M = 50$ or $N = 50$ constant, shown in a log scale.}
+    \label{fig:times_log}
+\end{figure}
+
+\section{Results and Discussion}
+
+Firstly,  we will test the speed of our implementation of the Galerkin method; we expect to see a linear trend as a function of $M$ since we are solving the equations for each m separately. As a function of $N$, we expect more of a quadratic dependence since each time we are solving an $N \times N$ system of equations in matrix form. There might be a slight speed up if the $N \times N$ matrix had a special from that the equation solver was checking for, however out $N \times N$ matrix doesn't have any special form.
+
+This is born out by the results shown in \cref{fig:times}; the $M$ dependence is almost exactly linear, while the $N$ dependence looks to be quadratic. A further confirmation that the $N$ dependence is a power can be seen in \cref{fig:times_log}.
+
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{deltaC_log.png}
+    \caption{Error estimate for $C$ as a function of number of trial functions, holding either $M = 30$ or $N = 30$ constant, shown in a log scale.}
+    \label{fig:deltaC_log}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{deltaumax_log.png}
+    \caption{Error estimate for $u$ as a function of number of trial functions, holding either $M = 30$ or $N = 30$ constant, shown in a log scale.}
+    \label{fig:deltaumax_log}
+\end{figure}
+
+The next thing to check is what the error of the method is and how it converges. As a built-in error estimate, we will use the absolute value of a single term in the series we're summing. At this point however, even though we've been working with abstract function and their series, to actually see the result and errors, we need to set up a grid on our domain and calculate the values at those grid points.
+
+The grid we will use is a polar coordinates grid with $500$ points in the radial and angular directions, with the angular points being weighed more towards the outer edge, to get a better covering of the domain.
+
+We will measure the error in two ways. One way will be by looking at the error in the coefficient $C$ that we're trying to calculate, while the second will be by looking at the maximum over the grid points of each consecutive trial function. In each of these cases the estimate will obviously be an underestimate of the error, but since we mathematically know that the series converges to the right answer as long as our trial set converges to a basis (which it does), then we can at least be sure that we are getting the correct behavior if our error estimate converges to $0$.
+
+The results of this are shown in \cref{fig:deltaC_log,fig:deltaumax_log}. \Cref{fig:deltaC_log} shows the described error estimate for $C$ in a log scale. We see that the error goes to zero exponentially, independent of what parameter we change and what parameter we keep constant between $M$ and $N$. \Cref{fig:deltaumax_log}, on the other hand, shows the maximal error in the terms of the series themselves. We see that in the $m$-series the terms start out with low error, but they plateau around an error of $10^{-5}$. This is because the first term in the $m$-series $\sin(\phi)$ gets the major contribution to the solution right and all the following terms are just small corrections, however it's very hard to lower the error substantially since the corrections just get more and more oscillatory. In the case of the $n$-series, the behavior is totally different. It starts off very inaccurate but then it exponentially decreases. This makes sense since in that case the first term is not particularly accurate since we guessed that part completely, but all the successive terms aren't oscillatory, instead being just finer and finer corrections to the leading term.
+
+\begin{figure}
+    \centering
+    \captionsetup{justification=centering}
+    \includegraphics[scale=0.5]{flow_profile.png}
+    \caption{Velocity $u$ flow profile for the semicircular pipe.}
+    \label{fig:flow_profile}
+\end{figure}
+
+
+Finally, we can plot the result from calculating $u$ in this way. \Cref{fig:flow_profile} shows a contour plot of the velocity $u$. We can see that as required the velocity at the boundary is $0$ and as expected it is maximal somewhere near the middle. Also drawn are some surfaces of equal velocity as dashed lines. This result agrees with the one in \cite{alassar}. A more detailed analysis of a related problem can be found in \cite{ELSAMNI20191}.
+
+From the same calculations we also get the numerical value of the coefficient $C$ as
+%
+\begin{align}
+    C = 0.75772189 \pm 10^{-8}
+\end{align}
+
+
+
+
+
+
+
+
+\printbibliography
+
+\end{document}
